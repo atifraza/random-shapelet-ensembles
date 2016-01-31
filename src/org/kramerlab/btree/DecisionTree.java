@@ -51,6 +51,12 @@ public class DecisionTree {
                     shapeletFinder = new LegacyShapelets(trainSet, minLen,
                                                          maxLen, stepSize);
                     break;
+                case 2:
+                    shapeletFinder = new RandomizedLegacyShapelets(trainSet,
+                                                                   minLen,
+                                                                   maxLen,
+                                                                   stepSize);
+                    break;
             }
             this.shapelet = shapeletFinder.findShapelet();
             TimeSeriesDataset[] splitDataset = shapeletFinder.splitDataset(this.shapelet.getHistMap(),
