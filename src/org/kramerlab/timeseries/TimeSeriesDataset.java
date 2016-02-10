@@ -4,6 +4,7 @@
 package org.kramerlab.timeseries;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Set;
 
@@ -67,13 +68,17 @@ public class TimeSeriesDataset {
 		return entropy;
 	}
 
-	private void updateClassHist() {
+	public void updateClassHist() {
+	    if (this.isClassHistUpdated) {
+	        return;
+	    }
 		int currCount;
 		Integer clsLabel;
+		this.instsPerClass.clear();
 		for (TimeSeries t : this.dataset) {
 			clsLabel = t.getLabel();
 			currCount = this.instsPerClass.getOrDefault(clsLabel, 0);
-			this.instsPerClass.put(t.getLabel(), currCount + 1);
+			this.instsPerClass.put(clsLabel, currCount + 1);
 		}
 		this.isClassHistUpdated = true;
 	}
@@ -95,5 +100,13 @@ public class TimeSeriesDataset {
             this.updateClassHist();
         }
         return this.instsPerClass;
+    }
+    
+    public void remove(int ind) {
+        this.dataset.remove(ind);
+    }
+    
+    public void shuffle() {
+        Collections.shuffle(dataset);
     }
 }

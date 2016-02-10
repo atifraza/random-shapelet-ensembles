@@ -154,6 +154,7 @@ public class LegacyShapelets extends BaseShapelets {
         double minEnd = 0;
         double maxEnd = 1 + orderLine.lastKey();
         TreeMap<Double, ArrayList<TimeSeries>> optimisticOrderLine = new TreeMap<Double, ArrayList<TimeSeries>>();
+        this.trainSet.updateClassHist();
         for (Integer cls : this.trainSet.getAllClasses()) {
             createOptimisticOrderLine(optimisticOrderLine, orderLine, ind,
                                       cls.intValue(), minEnd, maxEnd);

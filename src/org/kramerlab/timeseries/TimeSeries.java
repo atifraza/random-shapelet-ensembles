@@ -15,13 +15,18 @@ public class TimeSeries {
     protected Double[] sumX2;
     
     public TimeSeries(ArrayList<Double> timeSeries, int classLabel) {
+        this(timeSeries.toArray(new Double[timeSeries.size()]), classLabel);
+    }
+    
+    public TimeSeries(Double[] timeSeries, int classLabel) {
         this.tsClass = classLabel;
-        this.ts = new Double[timeSeries.size()];
-        this.sumX = new Double[timeSeries.size()];
-        this.sumX2 = new Double[timeSeries.size()];
+        int len = timeSeries.length;
+        this.ts = new Double[len];
+        this.sumX = new Double[len];
+        this.sumX2 = new Double[len];
         double val;
-        for (int i = 0; i < timeSeries.size(); i++) {
-            val = timeSeries.get(i);
+        for (int i = 0; i < len; i++) {
+            val = timeSeries[i];
             this.ts[i] = val;
             if (i == 0) {
                 this.sumX[i] = val;

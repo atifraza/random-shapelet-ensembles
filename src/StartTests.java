@@ -22,6 +22,7 @@ import org.kramerlab.btree.DecisionTree;
 import org.kramerlab.timeseries.*;
 import org.kramerlab.shapelets.LegacyShapelets;
 import org.kramerlab.shapelets.Shapelet;
+import org.kramerlab.rulelearners.Ripper;
 
 public class StartTests {
     // The following static String variables are the CLI switches
@@ -159,6 +160,8 @@ public class StartTests {
                 }
                 
                 stop = System.currentTimeMillis();
+                System.out.println("Time (sec): " + (stop - start) / 1e3);
+                System.out.println("Accuracy: " + 100.0 * correct / testSet.size());
                 File resultsFile = new File("./results/Shapelets_results.csv");
                 String temp = "";
                 if (!resultsFile.exists()) {
@@ -173,6 +176,19 @@ public class StartTests {
                         + tree.getPrunedCandidates() + ",\t"
                         + (stop - start) / 1e3 + ",\t"
                         + 100.0 * correct / testSet.size() + "\n";
+                correct = 0;
+                start = System.currentTimeMillis();
+                Ripper test = new Ripper(trainSet, minLen, maxLen, stepSize);
+                test.printRules();
+                for (int ind = 0; ind < testSet.size(); ind++) {
+                    predClass = test.checkInstance(testSet.get(ind));
+                    if (predClass == testSet.get(ind).getLabel()) {
+                        correct++;
+                    }
+                }
+                stop = System.currentTimeMillis();
+                System.out.println("Time (sec): " + (stop - start) / 1e3);
+                System.out.println("Accuracy: " + 100.0 * correct / testSet.size());
                 fw = new FileWriter(resultsFile, true);
                 bw = new BufferedWriter(fw);
                 bw.write(temp);
