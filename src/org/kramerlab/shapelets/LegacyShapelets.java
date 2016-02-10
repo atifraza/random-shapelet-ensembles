@@ -9,6 +9,8 @@ import org.kramerlab.timeseries.*;
 public class LegacyShapelets extends BaseShapelets {
     
     protected boolean hasMoreCandidates;
+    protected boolean pruningAllowed = true;
+    protected boolean normalOrder = true;
     protected int currInst;
     protected int currPosInInst;
     protected int currLen;
@@ -50,7 +52,7 @@ public class LegacyShapelets extends BaseShapelets {
                 currDist = subseqDist(t, currCandidate);
                 this.addToMap(orderLine, currDist, t);
                 // Check for early pruning by entropy
-                if (entropyEarlyPruning(orderLine, ind, bsfGain)) {
+                if (this.pruningAllowed && entropyEarlyPruning(orderLine, ind, bsfGain)) {
                     pruned = true;
                     prunedCandidates++;
                     break;
@@ -82,8 +84,10 @@ public class LegacyShapelets extends BaseShapelets {
                 this.currInst++;
                 if (this.currInst > (this.trainSet.size() - 1)) {
                     this.currInst = 0;
-                    this.currLen -= this.stepSize;
-                    if (this.currLen < this.minLen) {
+                    int multiplier = this.normalOrder ? 1 : -1;
+                    this.currLen -= multiplier * this.stepSize;
+                    if ((this.normalOrder && (this.currLen < this.minLen))
+                        || (!this.normalOrder && (this.currLen > this.maxLen))) {
                         this.hasMoreCandidates = false;
                     }
                 }
@@ -181,5 +185,14 @@ public class LegacyShapelets extends BaseShapelets {
     @Override
     public double getDist(TimeSeries t, TimeSeries s) {
         return subseqDist(t, s);
+    }
+    
+    public void toggleEntropyPruning(boolean newState) {
+        this.pruningAllowed = newState;
+    }
+    
+    public void setInversedSearch() {
+        this.normalOrder = false;
+        this.currLen = this.minLen;
     }
 }
