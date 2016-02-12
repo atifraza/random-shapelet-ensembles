@@ -11,6 +11,7 @@ public class LegacyShapelets extends BaseShapelets {
     protected boolean hasMoreCandidates;
     protected boolean pruningAllowed = true;
     protected boolean normalOrder = true;
+    protected boolean useNormalization = true;
     protected int currInst;
     protected int currPosInInst;
     protected int currLen;
@@ -100,11 +101,27 @@ public class LegacyShapelets extends BaseShapelets {
         double minDist = Double.POSITIVE_INFINITY;
         boolean stopped;
         double currDist;
+        double ti,
+               tMu,
+               tSigma,
+               si,
+               sMu = s.mean(0, s.size()),
+               sSigma = s.stdv(0, s.size());
+        
         for (int tInd = 0; tInd < t.size() - s.size() + 1; tInd++) {
             stopped = false;
             currDist = 0;
+            tMu = t.mean(tInd, s.size());
+            tSigma = t.stdv(tInd, s.size());
             for (int sInd = 0; sInd < s.size(); sInd++) {
-                currDist += Math.pow((t.get(tInd + sInd) - s.get(sInd)), 2);
+                if (this.useNormalization) {
+                    ti = ( t.get(tInd + sInd) - tMu ) / tSigma;
+                    si = (s.get(sInd)-sMu)/sSigma;
+                } else {
+                    ti = t.get(tInd + sInd);
+                    si = s.get(sInd);
+                }
+                currDist += Math.pow((ti - si), 2);
                 if (currDist >= minDist) {
                     stopped = true;
                     break;
@@ -194,5 +211,9 @@ public class LegacyShapelets extends BaseShapelets {
     public void setInversedSearch() {
         this.normalOrder = false;
         this.currLen = this.minLen;
+    }
+    
+    public void disableNormalization() {
+        this.useNormalization = false;
     }
 }
