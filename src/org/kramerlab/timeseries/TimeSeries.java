@@ -100,4 +100,10 @@ public class TimeSeries {
         else
             return Math.sqrt(s2);
     }
+    
+    public Double[] getTSSegment(int start, int len) {
+        Double[] segment = new Double[len];
+        System.arraycopy(this.ts, start, segment, 0, len);
+        return segment;
+    }
 }

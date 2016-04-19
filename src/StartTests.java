@@ -37,7 +37,7 @@ public class StartTests {
      */
     public static void main(String[] args) {
         String dsName = null;       // Time series data set name
-        String path = "./data/";
+        String path = "/home/atif/work/data/UCR_2015/";
         FileWriter fw;
         BufferedWriter bw;
         Properties props;
@@ -74,7 +74,7 @@ public class StartTests {
                 method = Integer.parseInt(cmdLine.getOptionValue(methodSw));
             }
             
-            System.out.println("Dataset: " + dsName + "\nMethod: " + method);
+//            System.out.println("Dataset: " + dsName + "\nMethod: " + method);
             if (method == 0) {
                 dataset = loadDataset(path + dsName + "_TRAIN", " ");
                 minLen = dataset.get(0).size()/4;
