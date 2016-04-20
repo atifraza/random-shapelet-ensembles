@@ -1,6 +1,8 @@
 package org.kramerlab.shapelets;
 
+import java.io.FileInputStream;
 import java.util.ArrayList;
+import java.util.Properties;
 import java.util.Map.Entry;
 import java.util.TreeMap;
 
@@ -9,9 +11,9 @@ import org.kramerlab.timeseries.*;
 public class LegacyShapelets extends BaseShapelets {
     
     protected boolean hasMoreCandidates;
-    protected boolean pruningAllowed = true;
-    protected boolean normalOrder = true;
-    protected boolean useNormalization = true;
+    protected boolean entropyPruningEnabled;
+    protected boolean decreasingLengthOrder;
+    protected boolean normalizationEnabled;
     protected int currInst;
     protected int currPosInInst;
     protected int currLen;
@@ -19,10 +21,20 @@ public class LegacyShapelets extends BaseShapelets {
     public LegacyShapelets(TimeSeriesDataset trainSet, int minLen, int maxLen,
                            int stepSize) {
         super(trainSet, minLen, maxLen, stepSize);
+        Properties props;
+        try {
+            props = new Properties();
+            props.load(new FileInputStream("shapelets.properties"));
+            this.normalizationEnabled = Boolean.parseBoolean(props.getProperty("normalize", "true"));
+            this.entropyPruningEnabled = Boolean.parseBoolean(props.getProperty("entropy_pruning", "true"));
+            this.decreasingLengthOrder = Boolean.parseBoolean(props.getProperty("decreasing_candidate_length", "true"));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         this.hasMoreCandidates = true;
         this.currInst = 0;
         this.currPosInInst = 0;
-        this.currLen = this.maxLen;
+        this.currLen = this.decreasingLengthOrder ? this.maxLen : this.minLen;
     }
     
     @Override
@@ -53,7 +65,7 @@ public class LegacyShapelets extends BaseShapelets {
                 currDist = subseqDist(t, currCandidate);
                 this.addToMap(orderLine, currDist, t);
                 // Check for early pruning by entropy
-                if (this.pruningAllowed && entropyEarlyPruning(orderLine, ind, bsfGain)) {
+                if (this.entropyPruningEnabled && entropyEarlyPruning(orderLine, ind, bsfGain)) {
                     pruned = true;
                     prunedCandidates++;
                     break;
@@ -79,22 +91,26 @@ public class LegacyShapelets extends BaseShapelets {
             TimeSeries currTS = this.trainSet.get(this.currInst);
             candidate = new TimeSeries(currTS, this.currPosInInst,
                                        this.currPosInInst + this.currLen);
-            this.currPosInInst++;
-            if (this.currPosInInst + this.currLen > currTS.size()) {
-                this.currPosInInst = 0;
-                this.currInst++;
-                if (this.currInst > (this.trainSet.size() - 1)) {
-                    this.currInst = 0;
-                    int multiplier = this.normalOrder ? 1 : -1;
-                    this.currLen -= multiplier * this.stepSize;
-                    if ((this.normalOrder && (this.currLen < this.minLen))
-                        || (!this.normalOrder && (this.currLen > this.maxLen))) {
-                        this.hasMoreCandidates = false;
-                    }
+            this.incrementCandidatePosition();
+        }
+        return candidate;
+    }
+    
+    protected void incrementCandidatePosition() {
+        this.currPosInInst++;
+        if (this.currPosInInst + this.currLen > this.trainSet.get(this.currInst).size()) {
+            this.currPosInInst = 0;
+            this.currInst++;
+            if (this.currInst > (this.trainSet.size() - 1)) {
+                this.currInst = 0;
+                int changeFactor = this.stepSize * (this.decreasingLengthOrder ? -1 : 1);
+                this.currLen += changeFactor;
+                if ((this.decreasingLengthOrder && (this.currLen < this.minLen))
+                    || (!this.decreasingLengthOrder && (this.currLen > this.maxLen))) {
+                    this.hasMoreCandidates = false;
                 }
             }
         }
-        return candidate;
     }
     
     protected double subseqDist(TimeSeries t, TimeSeries s) {
@@ -114,12 +130,11 @@ public class LegacyShapelets extends BaseShapelets {
             tMu = t.mean(tInd, s.size());
             tSigma = t.stdv(tInd, s.size());
             for (int sInd = 0; sInd < s.size(); sInd++) {
-                if (this.useNormalization) {
-                    ti = ( t.get(tInd + sInd) - tMu ) / tSigma;
-                    si = (s.get(sInd)-sMu)/sSigma;
-                } else {
-                    ti = t.get(tInd + sInd);
-                    si = s.get(sInd);
+                ti = t.get(tInd + sInd);
+                si = s.get(sInd);
+                if (this.normalizationEnabled) {
+                    ti = ( ti - tMu ) / tSigma;
+                    si = ( si - sMu ) / sSigma;
                 }
                 currDist += Math.pow((ti - si), 2);
                 if (currDist >= minDist) {
@@ -205,15 +220,15 @@ public class LegacyShapelets extends BaseShapelets {
     }
     
     public void toggleEntropyPruning(boolean newState) {
-        this.pruningAllowed = newState;
+        this.entropyPruningEnabled = newState;
     }
     
     public void setInversedSearch() {
-        this.normalOrder = false;
+        this.decreasingLengthOrder = false;
         this.currLen = this.minLen;
     }
     
     public void disableNormalization() {
-        this.useNormalization = false;
+        this.normalizationEnabled = false;
     }
 }

@@ -26,7 +26,7 @@ public class RandomizedLegacyShapelets extends LegacyShapelets {
         try {
             props = new Properties();
             props.load(new FileInputStream("shapelets.properties"));
-            percentage = Double.parseDouble(props.getProperty("selection_ratio", "50"));
+            percentage = Double.parseDouble(props.getProperty("selection_ratio", "50")) / 100;
             if (props.containsKey("rand_seed")) {
                 int seed = Integer.parseInt(props.getProperty("rand_seed", "0"));
                 rand = new Random(seed);
@@ -39,10 +39,10 @@ public class RandomizedLegacyShapelets extends LegacyShapelets {
     }
     
     protected TimeSeries getNextCandidate() {
-        TimeSeries candidate = null;
-        do {
-            candidate = super.getNextCandidate();
-        } while ( rand.nextFloat() > percentage/100 && (candidate != null) );
+        while ( ( rand.nextFloat() > percentage ) && this.hasMoreCandidates ) {
+            this.incrementCandidatePosition();
+        }
+        TimeSeries candidate = super.getNextCandidate();
         return candidate;
     }
 }

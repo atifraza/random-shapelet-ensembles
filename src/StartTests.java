@@ -1,6 +1,7 @@
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.OutputStream;
@@ -138,13 +139,14 @@ public class StartTests {
                 props = new Properties();
                 File propsFile = new File("./params/" + dsName + ".params");
                 if (propsFile.exists()) {
-                    props.load(new FileReader(propsFile));
+                    props.load(new FileInputStream(propsFile));
                 } else {
-                    props.load(new FileReader("./params/default.params"));
+                    props.load(new FileInputStream("./params/default.params"));
                 }
                 
                 minLen = Integer.parseInt(props.getProperty("minLen", "10"));
                 maxLen = Integer.parseInt(props.getProperty("maxLen", "20"));
+                stepSize = Integer.parseInt(props.getProperty("stepSize", "1"));
 
                 start = System.currentTimeMillis();
                 DecisionTree tree = new DecisionTree(trainSet, minLen, maxLen,
