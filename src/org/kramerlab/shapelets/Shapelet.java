@@ -8,7 +8,7 @@ import org.kramerlab.timeseries.TimeSeries;
 public class Shapelet {
     protected TimeSeries shapelet;
     protected double splitDist;
-    TreeMap<Double, ArrayList<TimeSeries>> dsHist;
+    protected TreeMap<Double, ArrayList<Integer>> dsHist;
     
     public Shapelet() {
         this.shapelet = null;
@@ -16,8 +16,7 @@ public class Shapelet {
         this.dsHist = null;
     }
     
-    public Shapelet(TimeSeries shapelet, double splitDist,
-                    TreeMap<Double, ArrayList<TimeSeries>> dsHist) {
+    public Shapelet(TimeSeries shapelet, double splitDist, TreeMap<Double, ArrayList<Integer>> dsHist) {
         this.shapelet = shapelet;
         this.splitDist = splitDist;
         this.dsHist = dsHist;
@@ -31,7 +30,7 @@ public class Shapelet {
         return this.splitDist;
     }
     
-    public TreeMap<Double, ArrayList<TimeSeries>> getHistMap() {
+    public TreeMap<Double, ArrayList<Integer>> getHistMap() {
         return this.dsHist;
     }
 }

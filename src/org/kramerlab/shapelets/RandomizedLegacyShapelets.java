@@ -15,18 +15,17 @@ import org.kramerlab.timeseries.TimeSeriesDataset;
  *
  */
 public class RandomizedLegacyShapelets extends LegacyShapelets {
-
-    private static Random rand;
-    private static double percentage;
     
-    public RandomizedLegacyShapelets(TimeSeriesDataset trainSet, int minLen,
-                                     int maxLen, int stepSize) {
+    protected static Random rand;
+    protected static double percentage;
+    
+    public RandomizedLegacyShapelets(TimeSeriesDataset trainSet, int minLen, int maxLen, int stepSize) {
         super(trainSet, minLen, maxLen, stepSize);
         Properties props;
         try {
             props = new Properties();
             props.load(new FileInputStream("shapelets.properties"));
-            percentage = Double.parseDouble(props.getProperty("selection_ratio", "50")) / 100;
+            percentage = Double.parseDouble(props.getProperty("selection_ratio", "10")) / 100;
             if (props.containsKey("rand_seed")) {
                 int seed = Integer.parseInt(props.getProperty("rand_seed", "0"));
                 rand = new Random(seed);
@@ -39,10 +38,14 @@ public class RandomizedLegacyShapelets extends LegacyShapelets {
     }
     
     protected TimeSeries getNextCandidate() {
-        while ( ( rand.nextFloat() > percentage ) && this.hasMoreCandidates ) {
+        while ((rand.nextFloat() > percentage) && this.hasMoreCandidates) {
             this.incrementCandidatePosition();
         }
         TimeSeries candidate = super.getNextCandidate();
         return candidate;
+    }
+    
+    public double getSamplingPercentage() {
+        return percentage;
     }
 }

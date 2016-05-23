@@ -18,8 +18,7 @@ public class LegacyShapelets extends BaseShapelets {
     protected int currPosInInst;
     protected int currLen;
     
-    public LegacyShapelets(TimeSeriesDataset trainSet, int minLen, int maxLen,
-                           int stepSize) {
+    public LegacyShapelets(TimeSeriesDataset trainSet, int minLen, int maxLen, int stepSize) {
         super(trainSet, minLen, maxLen, stepSize);
         Properties props;
         try {
@@ -45,25 +44,24 @@ public class LegacyShapelets extends BaseShapelets {
         double bsfGain = Double.NEGATIVE_INFINITY;
         double bsfSplit = Double.NEGATIVE_INFINITY;
         double currDist;
-        double[] currGainAndDist = new double[2];
-        TreeMap<Double, ArrayList<TimeSeries>> bsfOrderLine = null;
-        TreeMap<Double, ArrayList<TimeSeries>> orderLine = null;
+        TreeMap<Double, ArrayList<Integer>> bsfOrderLine = null;
+        TreeMap<Double, ArrayList<Integer>> orderLine = null;
         boolean pruned;
         while ((currCandidate = this.getNextCandidate()) != null) {
             totalCandidates++;
             pruned = false;
-            currGainAndDist[0] = Double.NEGATIVE_INFINITY;
-            currGainAndDist[1] = Double.NEGATIVE_INFINITY;
+            info.gain = Double.NEGATIVE_INFINITY;
+            info.splitDist = Double.NEGATIVE_INFINITY;
             // Checking Candidate
             if (orderLine == bsfOrderLine) {
-                orderLine = new TreeMap<Double, ArrayList<TimeSeries>>();
+                orderLine = new TreeMap<>();
             } else {
                 orderLine.clear();
             }
             for (int ind = 0; ind < this.trainSet.size(); ind++) {
                 t = this.trainSet.get(ind);
                 currDist = subseqDist(t, currCandidate);
-                this.addToMap(orderLine, currDist, t);
+                this.addToMap(orderLine, currDist, ind);
                 // Check for early pruning by entropy
                 if (this.entropyPruningEnabled && entropyEarlyPruning(orderLine, ind, bsfGain)) {
                     pruned = true;
@@ -72,10 +70,10 @@ public class LegacyShapelets extends BaseShapelets {
                 }
             }
             if (!pruned) {
-                currGainAndDist = calcInfoGain_SplitDist(orderLine);
-                if (currGainAndDist[0] > bsfGain) {
-                    bsfGain = currGainAndDist[0];
-                    bsfSplit = currGainAndDist[1];
+                this.calcInfoGain_SplitDist(orderLine);
+                if (info.gain > bsfGain) {
+                    bsfGain = info.gain;
+                    bsfSplit = info.splitDist;
                     bsfShapelet = currCandidate;
                     bsfOrderLine = orderLine;
                 }
@@ -89,8 +87,7 @@ public class LegacyShapelets extends BaseShapelets {
         TimeSeries candidate = null;
         if (this.hasMoreCandidates) {
             TimeSeries currTS = this.trainSet.get(this.currInst);
-            candidate = new TimeSeries(currTS, this.currPosInInst,
-                                       this.currPosInInst + this.currLen);
+            candidate = new TimeSeries(currTS, this.currPosInInst, this.currPosInInst + this.currLen);
             this.incrementCandidatePosition();
         }
         return candidate;
@@ -133,8 +130,8 @@ public class LegacyShapelets extends BaseShapelets {
                 ti = t.get(tInd + sInd);
                 si = s.get(sInd);
                 if (this.normalizationEnabled) {
-                    ti = ( ti - tMu ) / tSigma;
-                    si = ( si - sMu ) / sSigma;
+                    ti = (ti - tMu) / tSigma;
+                    si = (si - sMu) / sSigma;
                 }
                 currDist += Math.pow((ti - si), 2);
                 if (currDist >= minDist) {
@@ -149,45 +146,42 @@ public class LegacyShapelets extends BaseShapelets {
         return minDist;
     }
     
-    protected boolean entropyEarlyPruning(TreeMap<Double, ArrayList<TimeSeries>> orderLine,
-                                          int ind, double bsfGain) {
+    protected boolean entropyEarlyPruning(TreeMap<Double, ArrayList<Integer>> orderLine, int ind, double bsfGain) {
         double minEnd = 0;
         double maxEnd = 1 + orderLine.lastKey();
-        TreeMap<Double, ArrayList<TimeSeries>> optimisticOrderLine = new TreeMap<Double, ArrayList<TimeSeries>>();
+        TreeMap<Double, ArrayList<Integer>> optimisticOrderLine = new TreeMap<>();
         for (Integer cls : this.trainSet.getAllClasses()) {
-            createOptimisticOrderLine(optimisticOrderLine, orderLine, ind,
-                                      cls.intValue(), minEnd, maxEnd);
-            if (this.calcInfoGain_SplitDist(optimisticOrderLine)[0] > bsfGain) {
+            createOptimisticOrderLine(optimisticOrderLine, orderLine, ind, cls.intValue(), minEnd, maxEnd);
+            this.calcInfoGain_SplitDist(optimisticOrderLine);
+            if (info.gain > bsfGain) {
                 return false;
             }
-            createOptimisticOrderLine(optimisticOrderLine, orderLine, ind,
-                                      cls.intValue(), maxEnd, minEnd);
-            if (this.calcInfoGain_SplitDist(optimisticOrderLine)[0] > bsfGain) {
+            createOptimisticOrderLine(optimisticOrderLine, orderLine, ind, cls.intValue(), maxEnd, minEnd);
+            this.calcInfoGain_SplitDist(optimisticOrderLine);
+            if (info.gain > bsfGain) {
                 return false;
             }
         }
         return true;
     }
     
-    private void createOptimisticOrderLine(TreeMap<Double, ArrayList<TimeSeries>> optimisticOrderLine,
-                                           TreeMap<Double, ArrayList<TimeSeries>> orderLine,
-                                           int ind, int cls, double end1,
+    private void createOptimisticOrderLine(TreeMap<Double, ArrayList<Integer>> optimisticOrderLine,
+                                           TreeMap<Double, ArrayList<Integer>> orderLine, int ind, int cls, double end1,
                                            double end2) {
         optimisticOrderLine.clear();
-        for (Entry<Double, ArrayList<TimeSeries>> entry : orderLine.entrySet()) {
-            optimisticOrderLine.put(entry.getKey(),
-                                    new ArrayList<TimeSeries>(entry.getValue()));
+        for (Entry<Double, ArrayList<Integer>> entry : orderLine.entrySet()) {
+            optimisticOrderLine.put(entry.getKey(), new ArrayList<Integer>(entry.getValue()));
         }
         for (int i = ind + 1; i < this.trainSet.size(); i++) {
             if (this.trainSet.get(i).getLabel() == cls) {
-                this.addToMap(optimisticOrderLine, end1, this.trainSet.get(i));
+                this.addToMap(optimisticOrderLine, end1, i);
             } else {
-                this.addToMap(optimisticOrderLine, end2, this.trainSet.get(i));
+                this.addToMap(optimisticOrderLine, end2, i);
             }
         }
     }
     
-    protected double[] calcInfoGain_SplitDist(TreeMap<Double, ArrayList<TimeSeries>> orderLine) {
+    protected void calcInfoGain_SplitDist(TreeMap<Double, ArrayList<Integer>> orderLine) {
         int size = orderLine.keySet().size();
         Double[] keys = orderLine.keySet().toArray(new Double[size]);
         double meanSplit;
@@ -202,16 +196,13 @@ public class LegacyShapelets extends BaseShapelets {
                 bestSplit = meanSplit;
             }
         }
-        return new double[] {bestGain, bestSplit};
+        info.gain = bestGain;
+        info.splitDist = bestSplit;
     }
     
-    protected double calcGain(TreeMap<Double, ArrayList<TimeSeries>> orderLine,
-                              double splitDist) {
+    protected double calcGain(TreeMap<Double, ArrayList<Integer>> orderLine, double splitDist) {
         TimeSeriesDataset[] d = splitDataset(orderLine, splitDist);
-        double gain = this.trainSet.entropy();
-        gain -= (d[0].entropy() * d[0].size() + d[1].entropy() * d[1].size())
-                / this.trainSet.size();
-        return gain;
+        return trainSet.entropy() - (d[0].entropy() * d[0].size() + d[1].entropy() * d[1].size()) / trainSet.size();
     }
     
     @Override

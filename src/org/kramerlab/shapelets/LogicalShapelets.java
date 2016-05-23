@@ -143,9 +143,9 @@ public class LogicalShapelets extends BaseShapelets {
 //        System.out.format("and Bound Computation Time %d\n\n\n", boundTime);
 //        System.out.format("Bhool Count %d\n\n\n",bhulCount);
         TimeSeries shapeletTS = new TimeSeries(trainSet.get(bestSplit.shapeletID), bestSplit.shapeletPos, bestSplit.shapeletPos + bestSplit.shapeletLength);
-        TreeMap<Double, ArrayList<TimeSeries>> obj_hist = new TreeMap<Double, ArrayList<TimeSeries>>();
+        TreeMap<Double, ArrayList<Integer>> obj_hist = new TreeMap<>();
         for (int i = 0; i < trainSet.size(); i++) {
-        	this.addToMap(obj_hist, bestSplit.line[i].distance, trainSet.get(bestSplit.line[i].tsID));
+        	this.addToMap(obj_hist, bestSplit.line[i].distance, bestSplit.line[i].tsID);
         }
         Shapelet s = new Shapelet(shapeletTS, bestSplit.splitDist, obj_hist);
 		return s;

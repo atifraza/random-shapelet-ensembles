@@ -14,9 +14,10 @@ public class DecisionTree {
     
     protected Shapelet shapelet;
     protected int nodeLabel;
+    protected int maxDepth;
+    protected int currentTreeDepth;
     
-    public DecisionTree() {
-        this.nodeID = 1;
+    protected DecisionTree() {
         this.parent = null;
         this.leftNode = null;
         this.rightNode = null;
@@ -24,53 +25,62 @@ public class DecisionTree {
         this.nodeLabel = Integer.MIN_VALUE;
     }
     
-    public DecisionTree(TimeSeriesDataset trainSet, int minLen, int maxLen,
-                        int stepSize, int sType) {
+    public DecisionTree(TimeSeriesDataset trainSet, int minLen, int maxLen, int stepSize, int sType) {
+        this(trainSet, minLen, maxLen, stepSize, sType, Integer.MAX_VALUE);
+    }
+    
+    public DecisionTree(TimeSeriesDataset trainSet, int minLen, int maxLen, int stepSize, int sType, int maxDepth) {
         this();
         methodType = sType;
+        this.nodeID = 1;
+        this.currentTreeDepth = 0;
+        this.maxDepth = maxDepth;
         this.createSubTree(trainSet, minLen, maxLen, stepSize);
         this.printTree("");
     }
     
-    public DecisionTree(DecisionTree parent, int nodeID,
-                        TimeSeriesDataset trainSet, int minLen, int maxLen,
-                        int stepSize) {
+    protected DecisionTree(DecisionTree parent, int nodeID, TimeSeriesDataset trainSet, int minLen, int maxLen,
+                           int stepSize) {
         this();
         this.nodeID = nodeID;
         this.parent = parent;
+        this.currentTreeDepth = parent.currentTreeDepth + 1;
+        this.maxDepth = parent.maxDepth;
         this.createSubTree(trainSet, minLen, maxLen, stepSize);
     }
     
-    protected void createSubTree(TimeSeriesDataset trainSet, int minLen,
-                                 int maxLen, int stepSize) {
-        if (trainSet.entropy() <= 1e-6) {
-            this.nodeLabel = trainSet.get(0).getLabel();
+    protected void createSubTree(TimeSeriesDataset trainSet, int minLen, int maxLen, int stepSize) {
+//        System.out.println("Tree Level: " + this.currentTreeDepth + " Node ID: " + this.nodeID);
+        if (trainSet.entropy() <= 0.1 || this.currentTreeDepth >= this.maxDepth) {
+            this.nodeLabel = trainSet.getClassHist()
+                                     .entrySet()
+                                     .stream()
+                                     .max((x, y) -> x.getValue() > y.getValue() ? 1 : -1)
+                                     .get()
+                                     .getKey();
+//            System.out.println("Leaf Node with Class: " + this.nodeLabel);
         } else {
             switch (methodType) {
                 case 1:
-                    shapeletFinder = new LegacyShapelets(trainSet, minLen,
-                                                         maxLen, stepSize);
+                    shapeletFinder = new LegacyShapelets(trainSet, minLen, maxLen, stepSize);
                     break;
                 case 2:
-                    shapeletFinder = new RandomizedLegacyShapelets(trainSet,
-                                                                   minLen,
-                                                                   maxLen,
-                                                                   stepSize);
+                    shapeletFinder = new RandomizedLegacyShapelets(trainSet, minLen, maxLen, stepSize);
                     break;
                 case 3:
-                    shapeletFinder = new LogicalShapelets(trainSet, minLen,
-                                                         maxLen, stepSize);
+                    shapeletFinder = new LogicalShapelets(trainSet, minLen, maxLen, stepSize);
                     break;
             }
+//            long totalCandidates = shapeletFinder.getNumOfCandidatesToProcess();
+//            if (shapeletFinder instanceof RandomizedLegacyShapelets) {
+//                totalCandidates *= ((RandomizedLegacyShapelets) shapeletFinder).getSamplingPercentage();
+//            }
+//            System.out.println("Candidates to process at this node: " + totalCandidates);
             this.shapelet = shapeletFinder.findShapelet();
             TimeSeriesDataset[] splitDataset = shapeletFinder.splitDataset(this.shapelet.getHistMap(),
                                                                            this.shapelet.getSplitDist());
-            this.leftNode = new DecisionTree(this, 2 * this.nodeID,
-                                             splitDataset[0], minLen, maxLen,
-                                             stepSize);
-            this.rightNode = new DecisionTree(this, 2 * this.nodeID + 1,
-                                              splitDataset[1], minLen, maxLen,
-                                              stepSize);
+            this.leftNode = new DecisionTree(this, 2 * this.nodeID, splitDataset[0], minLen, maxLen, stepSize);
+            this.rightNode = new DecisionTree(this, 2 * this.nodeID + 1, splitDataset[1], minLen, maxLen, stepSize);
         }
     }
     
@@ -78,8 +88,7 @@ public class DecisionTree {
         if (this.nodeLabel != Integer.MIN_VALUE) {
             return this.nodeLabel;
         } else {
-            double dist = shapeletFinder.getDist(testInst,
-                                                 this.shapelet.getShapelet());
+            double dist = shapeletFinder.getDist(testInst, this.shapelet.getShapelet());
             if (dist < this.shapelet.getSplitDist()) {
                 return this.leftNode.checkInstance(testInst);
             } else {
