@@ -23,8 +23,9 @@ public class LegacyShapelets extends BaseShapelets {
         Properties props;
         try {
             props = new Properties();
-            props.load(new FileInputStream("shapelets.properties"));
-            this.normalizationEnabled = Boolean.parseBoolean(props.getProperty("normalize", "true"));
+            String propsFileName = System.getProperty("ls-props", "ls.properties");
+            props.load(new FileInputStream(propsFileName));
+            this.normalizationEnabled = Boolean.parseBoolean(props.getProperty("normalize", "false"));
             this.entropyPruningEnabled = Boolean.parseBoolean(props.getProperty("entropy_pruning", "true"));
             this.decreasingLengthOrder = Boolean.parseBoolean(props.getProperty("decreasing_candidate_length", "true"));
         } catch (Exception e) {

@@ -64,7 +64,7 @@ public class EstimateParams {
             Properties props = new Properties();
             props.put("minLen", Integer.toString(minLen));
             props.put("maxLen", Integer.toString(maxLen));
-            try (BufferedWriter bw = Files.newBufferedWriter(Paths.get(cc.getParamsPath() + dsName + ".params"))) {
+            try (BufferedWriter bw = Files.newBufferedWriter(Paths.get(cc.getParamsPath(), dsName + ".params"))) {
                 props.store(bw, "");
             } catch (Exception e) {
                 e.printStackTrace();

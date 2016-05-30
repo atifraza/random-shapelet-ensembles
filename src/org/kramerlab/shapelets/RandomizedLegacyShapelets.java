@@ -24,7 +24,8 @@ public class RandomizedLegacyShapelets extends LegacyShapelets {
         Properties props;
         try {
             props = new Properties();
-            props.load(new FileInputStream("shapelets.properties"));
+            String propsFileName = System.getProperty("rs-props", "rs.properties");
+            props.load(new FileInputStream(propsFileName));
             percentage = Double.parseDouble(props.getProperty("selection_ratio", "10")) / 100;
             if (props.containsKey("rand_seed")) {
                 int seed = Integer.parseInt(props.getProperty("rand_seed", "0"));

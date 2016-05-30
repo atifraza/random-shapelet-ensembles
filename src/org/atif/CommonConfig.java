@@ -1,10 +1,14 @@
 package org.atif;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Properties;
 import java.util.StringTokenizer;
 
 import org.apache.commons.cli.CommandLine;
@@ -20,19 +24,14 @@ public class CommonConfig {
     // The following static String variables are the CLI switches
     protected String fileSw = "f";
     protected String fileSwL = "file";
-    protected String methodSw = "m";
-    protected String methodSwL = "method";
-    protected String dataPath;
-    protected String resultsPath;
-    protected String paramsPath;
+    protected String dataPathSwL = "data-path";
+    protected String rsltPathSwL = "results-path";
+    protected String paramsPathSwL = "params-path";
     protected CommandLine cmdLine;
     protected Options options;
     
     public CommonConfig(String[] args) {
         this.constructCommandLine(args);
-        this.dataPath = System.getProperty("datapath", "../../data/UCR_2015");
-        this.resultsPath = System.getProperty("resultspath", "./results/");
-        this.paramsPath = "./params/";
     }
     
     public String getDataSetName() {
@@ -40,41 +39,87 @@ public class CommonConfig {
     }
     
     public String getDataPath() {
-        return this.dataPath;
+        return this.cmdLine.getOptionValue(dataPathSwL, "../../data/UCR_2015");
     }
     
     public String getResultsPath() {
-        return this.resultsPath;
+        return this.cmdLine.getOptionValue(rsltPathSwL, "./results");
     }
     
     public String getParamsPath() {
-        return this.paramsPath;
-    }
-    
-    public int getMethodType() {
-        return Integer.parseInt(this.cmdLine.getOptionValue(methodSw, "1"));
+        return this.cmdLine.getOptionValue(paramsPathSwL, "./params");
     }
     
     protected void constructCommandLine(String[] args) {
         try {
-            Option fName = new Option(fileSw, fileSwL, true, "dataset name");
-            fName.setArgName("FILE");
-            fName.setArgs(1);
-            fName.setRequired(true);
+            Option fName = Option.builder(fileSw)
+                                 .longOpt(fileSwL)
+                                 .argName("FILE")
+                                 .required()
+                                 .desc("Data set name")
+                                 .numberOfArgs(1)
+                                 .build();
             
-            Option method = new Option(methodSw, methodSwL, true, "algorithm to use, 1: Legacy");
-            method.setArgName("METHOD");
-            method.setArgs(1);
+            Option dataPath  = Option.builder("dp")
+                                     .longOpt(dataPathSwL)
+                                     .argName( "PATH-TO-DATA-FOLDER" )
+                                     .desc("Specify the path to data file")
+                                     .numberOfArgs(1)
+                                     .build();
+            
+            Option resultsPath = Option.builder("rp")
+                                       .longOpt(rsltPathSwL)
+                                       .argName( "PATH-TO-RESULTS-FOLDER" )
+                                       .desc("Specify the path to save results")
+                                       .numberOfArgs(1)
+                                       .build();
+            
+            Option paramsPath =  Option.builder("pp")
+                                       .longOpt(paramsPathSwL)
+                                       .argName( "PATH-TO-PARAMS-FOLDER" )
+                                       .desc("Specify the path to param file")
+                                       .numberOfArgs(1)
+                                       .build();
+
             
             this.options = new Options();
-            this.options.addOption(fName).addOption(method);
+            this.options.addOption(fName)
+                        .addOption(dataPath)
+                        .addOption(resultsPath)
+                        .addOption(paramsPath);
             
             CommandLineParser cliParser = new DefaultParser();
             
             this.cmdLine = cliParser.parse(options, args);
         } catch (ParseException e) {
+            System.err.println("Error parsing CommandLine Arguments\nProbably none specified");
+        }
+    }
+    
+    public Properties constructPropertiesObject(int tsLen) {
+        Properties props = new Properties();
+        try {
+            File propsFile = new File(Paths.get(this.getParamsPath(), "default.params").toUri());
+            props.load(new FileInputStream(propsFile));
+            propsFile = new File(this.getParamsPath() + this.getDataSetName() + ".params");
+            if (propsFile.exists()) {
+                props.load(new FileInputStream(propsFile));
+            }
+        } catch (Exception e) {
             e.printStackTrace();
         }
+        
+        if (!props.containsKey("minLen")) {
+            props.setProperty("minLen", Integer.toString((int) Math.ceil(tsLen/4.0)));
+        }
+        if (!props.containsKey("maxLen")) {
+            props.setProperty("maxLen", Integer.toString((int) Math.floor(tsLen*2/3.0)));
+        }
+        if (!props.containsKey("stepSize")) {
+            props.setProperty("stepSize", "1");
+        }
+        
+        return props;
     }
     
     public ArrayList<TimeSeries> loadDataset(Path pathToFile, String delimiter) {

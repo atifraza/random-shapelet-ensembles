@@ -2,7 +2,6 @@ package org.atif.launcher;
 
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -27,7 +26,7 @@ public class LaunchRSEnsemble {
             String dsName = cc.getDataSetName();
             int method = 2;
             String dataPath = cc.getDataPath();
-            String resultsPath = cc.getResultsPath() + "RS Ensemble.csv";
+            String resultsPath = Paths.get(cc.getResultsPath(), "RS Ensemble.csv").toString();
             System.out.println("Data set: " + dsName);
             System.out.println("Method: " + method);
             System.out.println();
@@ -43,33 +42,15 @@ public class LaunchRSEnsemble {
             ArrayList<DecisionTree> dtList = new ArrayList<>();
             Map<Integer, Integer> predClassCount = new HashMap<>();
             int majorityVote;
-            Properties props = new Properties();
-            
-            try {
-                File propsFile = new File(cc.getParamsPath() + "default.params");
-                props.load(new FileInputStream(propsFile));
-                propsFile = new File(cc.getParamsPath() + dsName + ".params");
-                if (propsFile.exists()) {
-                    props.load(new FileInputStream(propsFile));
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
             
             dataset = cc.loadDataset(Paths.get(dataPath, dsName + "_TRAIN"), " ");
             trainSet = new TimeSeriesDataset(dataset);
             
-            if (props.containsKey("minLen")) {
-                minLen = Integer.parseInt(props.getProperty("minLen"));
-            } else {
-                minLen = (int) Math.ceil(trainSet.get(0).size()/4.0);
-            }
-            if (props.containsKey("maxLen")) {
-                maxLen = Integer.parseInt(props.getProperty("maxLen", "20"));
-            } else {
-                maxLen = (int) Math.floor(trainSet.get(0).size()*2/3.0);
-            }
-            stepSize = Integer.parseInt(props.getProperty("stepSize", "1"));
+            Properties props = cc.constructPropertiesObject(trainSet.get(0).size());
+            minLen = Integer.parseInt(props.getProperty("minLen"));
+            maxLen = Integer.parseInt(props.getProperty("maxLen"));
+            stepSize = Integer.parseInt(props.getProperty("stepSize"));
+            
             start = System.currentTimeMillis();
             for (int i = 0; i<ensembleSize; i++) {
                 tree = new DecisionTree(trainSet, minLen, maxLen, stepSize, method);
@@ -97,17 +78,17 @@ public class LaunchRSEnsemble {
             }
             
             File resultsFile = new File(resultsPath);
-            String temp = "", temp2;
+            StringBuilder strBldr = new StringBuilder();
             if (!resultsFile.exists()) {
-                temp = "Dataset,TrainSize,TSLen,MinLen,MaxLen,Method,TotalCand,Pruned,Time (sec),Accuracy (%),EnsembleSize\n";
+                strBldr.append("Dataset,TrainSize,TSLen,MinLen,MaxLen,Method,TotalCand,Pruned,Time (sec),Accuracy (%),EnsembleSize\n");
             }
             try (BufferedWriter bw = Files.newBufferedWriter(Paths.get(resultsFile.getAbsolutePath()),
                                                              StandardOpenOption.CREATE, StandardOpenOption.APPEND)) {
-                temp2 = dsName + "," + trainSet.size() + "," + trainSet.get(0).size() + "," + minLen + "," + maxLen
+                strBldr.append(dsName + "," + trainSet.size() + "," + trainSet.get(0).size() + "," + minLen + "," + maxLen
                         + "," + method + "," + totalCandidates + "," + prunedCandidates + ","
-                        + (stop - start) / 1e3 + "," + 100.0 * correct / testSet.size() +  "," + ensembleSize + "\n";
-                bw.write(temp+temp2);
-                System.out.println("\n\n" + temp2);
+                        + (stop - start) / 1e3 + "," + 100.0 * correct / testSet.size() +  "," + ensembleSize + "\n");
+                bw.write(strBldr.toString());
+                System.out.println(strBldr.toString());
             } catch (IOException e) {
                 e.printStackTrace();
             }
