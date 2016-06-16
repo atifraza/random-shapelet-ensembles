@@ -1,3 +1,5 @@
 #maxLen=20
 #minLen=5
 #stepSize=1
+#leafSize=10
+#treeDepth=1

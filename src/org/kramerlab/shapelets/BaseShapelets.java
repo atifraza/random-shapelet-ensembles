@@ -43,18 +43,44 @@ public abstract class BaseShapelets {
     }
     
     public TimeSeriesDataset[] splitDataset(TreeMap<Double, ArrayList<Integer>> obj_hist, double split_dist) {
-        TimeSeriesDataset[] splits = new TimeSeriesDataset[2];
-        splits[0] = new TimeSeriesDataset();
-        splits[1] = new TimeSeriesDataset();
+        final int numSplits = 2;
+        final boolean usingWeights = this.trainSet.isUsingWeights();
+        
+        TimeSeriesDataset[] splits = new TimeSeriesDataset[numSplits];
+        double[] sums = new double[numSplits];
+        ArrayList<ArrayList<Double>> weights = new ArrayList<>();
+        
+        for (int i = 0; i < numSplits; i++) {
+            splits[i] = new TimeSeriesDataset();
+            sums[i] = 0;
+            weights.add(new ArrayList<>());
+        }
+        
         for (Double d : obj_hist.keySet()) {
             if (d.doubleValue() < split_dist) {
                 for (Integer index : obj_hist.get(d)) {
                     splits[0].add(this.trainSet.get(index));
+                    if (usingWeights) {
+                        weights.get(0).add(this.trainSet.getWeight(index));
+                        sums[0] += this.trainSet.getWeight(index);
+                    }
                 }
             } else {
                 for (Integer index : obj_hist.get(d)) {
                     splits[1].add(this.trainSet.get(index));
+                    if (usingWeights) {
+                        weights.get(1).add(this.trainSet.getWeight(index));
+                        sums[1] += this.trainSet.getWeight(index);
+                    }
                 }
+            }
+        }
+        if (usingWeights) {
+            for (int i = 0; i < numSplits; i++) {
+                for (int j = 0; j < weights.get(i).size(); j++) {
+                    weights.get(i).set(j, weights.get(i).get(j) / sums[i]);
+                }
+                splits[i].setWeights(weights.get(i));
             }
         }
         return splits;

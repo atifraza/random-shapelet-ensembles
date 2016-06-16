@@ -1,144 +1,109 @@
 package org.atif.launcher;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Map;
-import java.util.Properties;
+import java.util.HashMap;
 import java.util.Random;
 
 import org.atif.CommonConfig;
 import org.kramerlab.btree.DecisionTree;
-import org.kramerlab.timeseries.TimeSeries;
 import org.kramerlab.timeseries.TimeSeriesDataset;
 
 public class LaunchRSEnsembleWithBoosting {
     
     public static void main(String[] args) {
         CommonConfig cc = new CommonConfig(args);
-        if (args.length == 0) {
-            cc.printHelp(true);
-        } else {
-            String dsName = cc.getDataSetName();
-            int method = 2;
-            String dataPath = cc.getDataPath();
-            String resultsPath = Paths.get(cc.getResultsPath(), "RS Ensemble - Boosting.csv").toString();
-            System.out.println("Data set: " + dsName);
-            System.out.println("Method: " + method);
-            System.out.println();
-            ArrayList<TimeSeries> dataset;
-            TimeSeriesDataset trainSet, testSet, trainSetResampled;
-            int minLen, maxLen, stepSize;
-            long start, stop;
-            DecisionTree tree;
-            int correct = 0;
-            int predClass = Integer.MIN_VALUE;
-            long totalCandidates = 0, prunedCandidates = 0;
-            int ensembleSize = 10;
-            Random rng = new Random();
-            ArrayList<DecisionTree> dtList = new ArrayList<>();
-            ArrayList<Double> alphaList = new ArrayList<>();
-            ArrayList<Double> errorList = new ArrayList<>();
-            ArrayList<Integer> correctlyClassified = new ArrayList<>();
-            ArrayList<Integer> incorrectlyClassified = new ArrayList<>();
-            double[] weights;
-            double error;
-            
-            dataset = cc.loadDataset(Paths.get(dataPath, dsName + "_TRAIN"), " ");
-            trainSet = new TimeSeriesDataset(dataset);
-            
-            Properties props = cc.constructPropertiesObject(trainSet.get(0).size());
-            minLen = Integer.parseInt(props.getProperty("minLen"));
-            maxLen = Integer.parseInt(props.getProperty("maxLen"));
-            stepSize = Integer.parseInt(props.getProperty("stepSize"));
-            
-            trainSetResampled = new TimeSeriesDataset(dataset);
-            weights = new double[trainSetResampled.size()];
-            Arrays.fill(weights, 1.0/trainSetResampled.size());
-            start = System.currentTimeMillis();
-            for (int i = 0; i<ensembleSize; i++) {
-                tree = new DecisionTree(trainSetResampled, minLen, maxLen, stepSize, method);
-                error = 0.0;
-                correct = 0;
-                for (int j = 0; j < trainSetResampled.size(); j++) {
-                    predClass = tree.checkInstance(trainSetResampled.get(j));
-                    if (predClass == trainSetResampled.get(j).getLabel()) {
-                        correct++;
-                        correctlyClassified.add(j);
-                    } else {
-                        error += weights[j];
-                        incorrectlyClassified.add(j);
-                    }
-                }
-//                currError = (double) (trainSetResampled.size() - correct) /trainSetResampled.size();
-                totalCandidates += tree.getTotalCandidates();
-                prunedCandidates += tree.getPrunedCandidates();
-                dtList.add(i, tree);
-                errorList.add(i, error);
-                if (error >= 0.5 || error < 1e-3) {
-                    ensembleSize = i;
-                    if (i==0) {
-                        ensembleSize = 1;
-                        alphaList.add(i, 1.0);
-                    }
-                    break;
-                }
-                alphaList.add(i, 0.5 * Math.log((1.0 - error)/error));
-                double temp = (2*error);
-                for (Integer ind : incorrectlyClassified) {
-                    weights[ind] = weights[ind]/temp;
-                }
-                temp = (2*(1-error));
-                for (Integer ind : correctlyClassified) {
-                    weights[ind] = weights[ind]/temp;
-                }
-                // resample the dataset using new weights
-                trainSetResampled = resampleWithWeights(rng, trainSetResampled, weights);
-            }
-            stop = System.currentTimeMillis();
-            
-            dataset = cc.loadDataset(Paths.get(dataPath, dsName + "_TEST"), " ");
-            testSet = new TimeSeriesDataset(dataset);
-            correct = 0;
-            Map<Integer, Integer> classMap = trainSet.getClassHist();
-            int min = classMap.keySet().stream().min((x, y) -> x.compareTo(y)).get();
-            int max = classMap.keySet().stream().max((x, y) -> x.compareTo(y)).get();
-            double collectiveDecision = 0;
-            for (int i = 0; i < testSet.size(); i++) {
-                collectiveDecision = 0;
-                for (int j = 0; j < ensembleSize; j++) {
-                    tree = dtList.get(j);
-                    predClass = tree.checkInstance(testSet.get(i));
-                    predClass = -1+2*(predClass - min)/(max - min);
-                    collectiveDecision += alphaList.get(j) * predClass;
-                }
-                predClass = (int) Math.signum(collectiveDecision);
-                if (-1+2*(testSet.get(i).getLabel() - min)/(max - min) == predClass) {
-                    correct++;
+        int method = 2;
+        TimeSeriesDataset trainSet = new TimeSeriesDataset(cc.getTrainSet()),
+                          testSet = new TimeSeriesDataset(cc.getTestSet()),
+                          trainSetResampled = new TimeSeriesDataset(cc.getTrainSet());
+        long start, stop;
+        double trainingTime, testingTime;
+        double trainingAccuracy, testingAccuracy;
+        DecisionTree tree;
+//        long totalCandidates = 0, prunedCandidates = 0;
+        ArrayList<DecisionTree> dtList = new ArrayList<>();
+        ArrayList<Integer> correctlyClassified = new ArrayList<>();
+        ArrayList<Integer> incorrectlyClassified = new ArrayList<>();
+        ArrayList<Double> alphaList = new ArrayList<>();
+        int predClass = Integer.MIN_VALUE;
+        Random rng = new Random();
+        double[] weights = new double[trainSet.size()];
+        Arrays.fill(weights, 1.0 / trainSet.size());
+        double error, temp;
+        
+        start = System.currentTimeMillis();
+        for (int i = 0; i < cc.getEnsembleSize(); i++) {
+            tree = new DecisionTree.Builder(trainSetResampled, method)
+                                   .minLen(cc.getMinLen())
+                                   .maxLen(cc.getMaxLen())
+                                   .stepSize(cc.getStepSize())
+                                   .leafeSize(cc.getLeafSize())
+                                   .maxDepth(cc.getTreeDepth())
+                                   .build();
+            error = 0.0;
+            for (int j = 0; j < trainSetResampled.size(); j++) {
+                predClass = tree.checkInstance(trainSetResampled.get(j));
+                if (predClass == trainSetResampled.get(j).getLabel()) {
+                    correctlyClassified.add(j);
+                } else {
+                    error += weights[j];
+                    incorrectlyClassified.add(j);
                 }
             }
-            
-            File resultsFile = new File(resultsPath);
-            StringBuilder strBldr = new StringBuilder();
-            if (!resultsFile.exists()) {
-                strBldr.append("Dataset,TrainSize,TSLen,MinLen,MaxLen,Method,TotalCand,Pruned,Time (sec),Accuracy (%),EnsembleSize\n");
+            // totalCandidates += tree.getTotalCandidates();
+            // prunedCandidates += tree.getPrunedCandidates();
+            dtList.add(i, tree);
+            if (error >= 0.5 || error < 1e-3) {
+                if (i == 0) {
+                    alphaList.add(i, 1.0);
+                }
+                break;
             }
-            try (BufferedWriter bw = Files.newBufferedWriter(Paths.get(resultsFile.getAbsolutePath()),
-                                                             StandardOpenOption.CREATE, StandardOpenOption.APPEND)) {
-                strBldr.append(dsName + "," + trainSet.size() + "," + trainSet.get(0).size() + "," + minLen + "," + maxLen
-                        + "," + method + "," + totalCandidates + "," + prunedCandidates + ","
-                        + (stop - start) / 1e3 + "," + 100.0 * correct / testSet.size() + "," + ensembleSize + "\n");
-                bw.write(strBldr.toString());
-                System.out.println(strBldr.toString());
-            } catch (IOException e) {
-                e.printStackTrace();
+            alphaList.add(i, 0.5 * Math.log((1.0 - error) / error));
+            temp = (2 * error);
+            for (Integer ind : incorrectlyClassified) {
+                weights[ind] = weights[ind] / temp;
+            }
+            temp = (2 * (1 - error));
+            for (Integer ind : correctlyClassified) {
+                weights[ind] = weights[ind] / temp;
+            }
+            // resample the dataset using new weights
+            trainSetResampled = resampleWithWeights(rng, trainSetResampled, weights);
+        }
+        stop = System.currentTimeMillis();
+        trainingAccuracy = getSplitAccuracy(dtList, alphaList, trainSet);
+        trainingTime = (stop - start) / 1e3;
+        
+        start = System.currentTimeMillis();
+        testingAccuracy = getSplitAccuracy(dtList, alphaList, testSet);
+        stop = System.currentTimeMillis();
+        testingTime = (stop - start) / 1e3;
+        
+        cc.saveResults("RS Ensemble - Boosting.csv", trainingTime, testingTime, trainingAccuracy, testingAccuracy,
+                       dtList.size());
+    }
+    
+    public static double getSplitAccuracy(ArrayList<DecisionTree> dtList, ArrayList<Double> alphaList, TimeSeriesDataset split) {
+        int correct = 0, predClass = Integer.MIN_VALUE;
+        HashMap<Integer, Integer> classMap = split.getClassHist();
+        int min = classMap.keySet().stream().min((x, y) -> x.compareTo(y)).get();
+        int max = classMap.keySet().stream().max((x, y) -> x.compareTo(y)).get();
+        double collectiveDecision = 0;
+        for (int ind = 0; ind < split.size(); ind++) {
+            collectiveDecision = 0;
+            for (int j = 0; j < alphaList.size(); j++) {
+                predClass = dtList.get(j).checkInstance(split.get(ind));
+                predClass = -1 + 2 * (predClass - min) / (max - min);
+                collectiveDecision += alphaList.get(j) * predClass;
+            }
+            predClass = (int) Math.signum(collectiveDecision);
+            if (-1 + 2 * (split.get(ind).getLabel() - min) / (max - min) == predClass) {
+                correct++;
             }
         }
+        return 100.0 * correct / split.size();
     }
     
     protected static TimeSeriesDataset resampleWithWeights(Random rng, TimeSeriesDataset src, double[] weights) {
@@ -150,8 +115,8 @@ public class LaunchRSEnsembleWithBoosting {
             sumProbs += rng.nextDouble();
             probabilities[i] = sumProbs;
         }
-        normalize(probabilities, sumProbs/sumOfWeights);
-        probabilities[src.size()-1] = sumOfWeights;
+        normalize(probabilities, sumProbs / sumOfWeights);
+        probabilities[src.size() - 1] = sumOfWeights;
         
         int k = 0;
         int l = 0;
@@ -163,7 +128,7 @@ public class LaunchRSEnsembleWithBoosting {
             sumProbs += weights[l];
             while ((k < src.size()) && (probabilities[k] <= sumProbs)) {
                 newSet.add(src.get(l));
-//                System.out.println(k + " " + l);
+                // System.out.println(k + " " + l);
                 k++;
             }
             l++;

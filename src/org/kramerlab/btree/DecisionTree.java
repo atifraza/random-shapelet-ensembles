@@ -4,6 +4,58 @@ import org.kramerlab.shapelets.*;
 import org.kramerlab.timeseries.*;
 
 public class DecisionTree {
+    public static class Builder {
+        // Required params
+        private final TimeSeriesDataset trainSet;
+        private final int sType;
+        
+        // Optional params
+        private int minLen;
+        private int maxLen;
+        private int stepSize;
+        private int maxDepth;
+        private int leafSize;
+        
+        public Builder(TimeSeriesDataset trainSet, int sType) {
+            this.trainSet = trainSet;
+            this.minLen = 1;
+            this.maxLen = trainSet.get(0).size();
+            this.stepSize = 1;
+            this.sType = sType;
+            this.maxDepth = Integer.MAX_VALUE;
+            this.leafSize = 1;
+        }
+        
+        public Builder minLen(int minLen) {
+            this.minLen = minLen;
+            return this;
+        }
+        
+        public Builder maxLen(int maxLen) {
+            this.maxLen = maxLen;
+            return this;
+        }
+        
+        public Builder stepSize(int stepSize) {
+            this.stepSize = stepSize;
+            return this;
+        }
+        
+        public Builder maxDepth(int maxDepth) {
+            this.maxDepth = maxDepth;
+            return this;
+        }
+        
+        public Builder leafeSize(int leafSize) {
+            this.leafSize = leafSize;
+            return this;
+        }
+        
+        public DecisionTree build() {
+            return new DecisionTree(this);
+        }
+    }
+    
     protected static BaseShapelets shapeletFinder;
     protected static int methodType;
     
@@ -11,6 +63,7 @@ public class DecisionTree {
     protected DecisionTree parent;
     protected DecisionTree leftNode;
     protected DecisionTree rightNode;
+    protected int leafSize;
     
     protected Shapelet shapelet;
     protected int nodeLabel;
@@ -25,17 +78,14 @@ public class DecisionTree {
         this.nodeLabel = Integer.MIN_VALUE;
     }
     
-    public DecisionTree(TimeSeriesDataset trainSet, int minLen, int maxLen, int stepSize, int sType) {
-        this(trainSet, minLen, maxLen, stepSize, sType, Integer.MAX_VALUE);
-    }
-    
-    public DecisionTree(TimeSeriesDataset trainSet, int minLen, int maxLen, int stepSize, int sType, int maxDepth) {
+    private DecisionTree(Builder bldr) {
         this();
-        methodType = sType;
+        methodType = bldr.sType;
         this.nodeID = 1;
         this.currentTreeDepth = 0;
-        this.maxDepth = maxDepth;
-        this.createSubTree(trainSet, minLen, maxLen, stepSize);
+        this.maxDepth = bldr.maxDepth;
+        this.leafSize = bldr.leafSize;
+        this.createSubTree(bldr.trainSet, bldr.minLen, bldr.maxLen, bldr.stepSize);
         this.printTree("");
     }
     
@@ -46,12 +96,15 @@ public class DecisionTree {
         this.parent = parent;
         this.currentTreeDepth = parent.currentTreeDepth + 1;
         this.maxDepth = parent.maxDepth;
+        this.leafSize = parent.leafSize;
         this.createSubTree(trainSet, minLen, maxLen, stepSize);
     }
     
     protected void createSubTree(TimeSeriesDataset trainSet, int minLen, int maxLen, int stepSize) {
-//        System.out.println("Tree Level: " + this.currentTreeDepth + " Node ID: " + this.nodeID);
-        if (trainSet.entropy() <= 0.1 || this.currentTreeDepth >= this.maxDepth) {
+//        System.out.println("Tree Level: " + this.currentTreeDepth + " TrnSet Entropy: " + trainSet.entropy());
+        if (this.currentTreeDepth >= this.maxDepth
+                || trainSet.size() <= this.leafSize
+                || trainSet.entropy() <= 0.1) {
             this.nodeLabel = trainSet.getClassHist()
                                      .entrySet()
                                      .stream()

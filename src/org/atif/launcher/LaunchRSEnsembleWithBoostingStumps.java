@@ -7,7 +7,7 @@ import org.atif.CommonConfig;
 import org.kramerlab.btree.DecisionTree;
 import org.kramerlab.timeseries.TimeSeriesDataset;
 
-public class LaunchRSEnsemble {
+public class LaunchRSEnsembleWithBoostingStumps {
     
     public static void main(String[] args) {
         CommonConfig cc = new CommonConfig(args);
@@ -20,19 +20,52 @@ public class LaunchRSEnsemble {
         DecisionTree tree;
 //        long totalCandidates = 0, prunedCandidates = 0;
         ArrayList<DecisionTree> dtList = new ArrayList<>();
+        ArrayList<Integer> correctlyClassified = new ArrayList<>();
+        ArrayList<Integer> incorrectlyClassified = new ArrayList<>();
+        ArrayList<Double> weights = new ArrayList<>();
+        int predClass = Integer.MIN_VALUE;
+        double error;
+        double temp = 1.0 / trainSet.size();
+        for (int i = 0; i < trainSet.size(); i++) {
+            weights.add(temp);
+        }
         
         start = System.currentTimeMillis();
-        for (int i = 0; i<cc.getEnsembleSize(); i++) {
+        for (int i = 0; i < cc.getEnsembleSize(); i++) {
+            trainSet.setWeights(weights);
             tree = new DecisionTree.Builder(trainSet, method)
                                    .minLen(cc.getMinLen())
                                    .maxLen(cc.getMaxLen())
                                    .stepSize(cc.getStepSize())
                                    .leafeSize(cc.getLeafSize())
-                                   .maxDepth(cc.getTreeDepth())
+                                   .maxDepth(1)
                                    .build();
-//            totalCandidates += tree.getTotalCandidates();
-//            prunedCandidates += tree.getPrunedCandidates();
-            dtList.add(tree);
+            error = 0.0;
+            for (int j = 0; j < trainSet.size(); j++) {
+                predClass = tree.checkInstance(trainSet.get(j));
+                if (predClass == trainSet.get(j).getLabel()) {
+                    correctlyClassified.add(j);
+                } else {
+                    error += weights.get(j);
+                    incorrectlyClassified.add(j);
+                }
+            }
+            // totalCandidates += tree.getTotalCandidates();
+            // prunedCandidates += tree.getPrunedCandidates();
+            dtList.add(i, tree);
+            if (error < 1e-3) {
+                break;
+            }
+            temp = (2 * error);
+            for (Integer ind : incorrectlyClassified) {
+                weights.set(ind, weights.get(ind) / temp);
+            }
+            incorrectlyClassified.clear();
+            temp = (2 * (1 - error));
+            for (Integer ind : correctlyClassified) {
+                weights.set(ind, weights.get(ind) / temp);
+            }
+            correctlyClassified.clear();
         }
         stop = System.currentTimeMillis();
         trainingAccuracy = getSplitAccuracy(dtList, trainSet);
@@ -43,7 +76,8 @@ public class LaunchRSEnsemble {
         stop = System.currentTimeMillis();
         testingTime = (stop - start) / 1e3;
         
-        cc.saveResults("RS Ensemble.csv", trainingTime, testingTime, trainingAccuracy, testingAccuracy, dtList.size());
+        cc.saveResults("RS Ensemble - Boosting2.csv", trainingTime, testingTime, trainingAccuracy, testingAccuracy,
+                       dtList.size());
     }
     
     public static double getSplitAccuracy(ArrayList<DecisionTree> dtList, TimeSeriesDataset split) {
