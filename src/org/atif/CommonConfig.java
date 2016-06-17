@@ -12,6 +12,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Formatter;
+import java.util.HashMap;
 import java.util.Properties;
 import java.util.StringTokenizer;
 
@@ -99,6 +100,17 @@ public class CommonConfig {
             }
             if (props.containsKey("leafSize")) {
                 this.leafSize = Integer.parseInt(props.getProperty("leafSize"));
+                if (this.leafSize == 0) {
+                    HashMap<Integer, Integer> classMap = new HashMap<>();
+                    for (TimeSeries ts : trainSet) {
+                        classMap.put(ts.getLabel(), classMap.getOrDefault(ts.getLabel(), 0)+1);
+                    }
+                    this.leafSize = classMap.entrySet()
+                                            .stream()
+                                            .min((x, y) -> x.getValue() < y.getValue() ? -1 : 1)
+                                            .get()
+                                            .getValue();
+                }
             }
             if (props.containsKey("treeDepth")) {
                 this.treeDepth = Integer.parseInt(props.getProperty("treeDepth"));
@@ -257,7 +269,7 @@ public class CommonConfig {
             try (BufferedWriter bw = Files.newBufferedWriter(Paths.get(resultsFile.getAbsolutePath()),
                                                              StandardOpenOption.CREATE,
                                                              StandardOpenOption.APPEND)) {
-                formatter.format("%s,%.3f,%.3f,%.3f,%.3f,%d,%d,%d,%d,%d",
+                formatter.format("%s,%.2f,%.4f,%.4f,%.4f,%d,%d,%d,%d,%d",
                                  this.getDataSetName(),
                                  trainingTime,
                                  testingTime,
