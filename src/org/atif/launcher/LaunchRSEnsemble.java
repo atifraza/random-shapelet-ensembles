@@ -28,7 +28,7 @@ public class LaunchRSEnsemble {
                                    .maxLen(cc.getMaxLen())
                                    .stepSize(cc.getStepSize())
                                    .leafeSize(cc.getLeafSize())
-                                   .maxDepth(cc.getTreeDepth())
+                                   .treeDepth(cc.getTreeDepth())
                                    .build();
 //            totalCandidates += tree.getTotalCandidates();
 //            prunedCandidates += tree.getPrunedCandidates();

@@ -38,7 +38,7 @@ public class LaunchRSEnsembleWithBoosting2 {
                                    .maxLen(cc.getMaxLen())
                                    .stepSize(cc.getStepSize())
                                    .leafeSize(cc.getLeafSize())
-                                   .maxDepth(cc.getTreeDepth())
+                                   .treeDepth(cc.getTreeDepth())
                                    .build();
             error = 0.0;
             for (int j = 0; j < trainSet.size(); j++) {

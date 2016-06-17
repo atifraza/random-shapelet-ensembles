@@ -38,7 +38,7 @@ public class LaunchRSEnsembleWithBoostingStumps {
                                    .maxLen(cc.getMaxLen())
                                    .stepSize(cc.getStepSize())
                                    .leafeSize(cc.getLeafSize())
-                                   .maxDepth(1)
+                                   .treeDepth(1)
                                    .build();
             error = 0.0;
             for (int j = 0; j < trainSet.size(); j++) {
@@ -76,7 +76,7 @@ public class LaunchRSEnsembleWithBoostingStumps {
         stop = System.currentTimeMillis();
         testingTime = (stop - start) / 1e3;
         
-        cc.saveResults("RS Ensemble - Boosting2.csv", trainingTime, testingTime, trainingAccuracy, testingAccuracy,
+        cc.saveResults("RS Ensemble - BoostingStumps.csv", trainingTime, testingTime, trainingAccuracy, testingAccuracy,
                        dtList.size());
     }
     

@@ -23,7 +23,7 @@ public class LaunchLS {
                                .maxLen(cc.getMaxLen())
                                .stepSize(cc.getStepSize())
                                .leafeSize(cc.getLeafSize())
-                               .maxDepth(cc.getTreeDepth())
+                               .treeDepth(cc.getTreeDepth())
                                .build();
         stop = System.currentTimeMillis();
         trainingAccuracy = getSplitAccuracy(tree, trainSet);

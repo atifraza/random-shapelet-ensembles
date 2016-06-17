@@ -13,7 +13,7 @@ public class DecisionTree {
         private int minLen;
         private int maxLen;
         private int stepSize;
-        private int maxDepth;
+        private int maxTreeDepth;
         private int leafSize;
         
         public Builder(TimeSeriesDataset trainSet, int sType) {
@@ -22,7 +22,7 @@ public class DecisionTree {
             this.maxLen = trainSet.get(0).size();
             this.stepSize = 1;
             this.sType = sType;
-            this.maxDepth = Integer.MAX_VALUE;
+            this.maxTreeDepth = Integer.MAX_VALUE;
             this.leafSize = 1;
         }
         
@@ -41,8 +41,8 @@ public class DecisionTree {
             return this;
         }
         
-        public Builder maxDepth(int maxDepth) {
-            this.maxDepth = maxDepth;
+        public Builder treeDepth(int maxDepth) {
+            this.maxTreeDepth = maxDepth;
             return this;
         }
         
@@ -67,7 +67,7 @@ public class DecisionTree {
     
     protected Shapelet shapelet;
     protected int nodeLabel;
-    protected int maxDepth;
+    protected int maxTreeDepth;
     protected int currentTreeDepth;
     
     protected DecisionTree() {
@@ -83,7 +83,7 @@ public class DecisionTree {
         methodType = bldr.sType;
         this.nodeID = 1;
         this.currentTreeDepth = 0;
-        this.maxDepth = bldr.maxDepth;
+        this.maxTreeDepth = bldr.maxTreeDepth;
         this.leafSize = bldr.leafSize;
         this.createSubTree(bldr.trainSet, bldr.minLen, bldr.maxLen, bldr.stepSize);
         this.printTree("");
@@ -95,14 +95,14 @@ public class DecisionTree {
         this.nodeID = nodeID;
         this.parent = parent;
         this.currentTreeDepth = parent.currentTreeDepth + 1;
-        this.maxDepth = parent.maxDepth;
+        this.maxTreeDepth = parent.maxTreeDepth;
         this.leafSize = parent.leafSize;
         this.createSubTree(trainSet, minLen, maxLen, stepSize);
     }
     
     protected void createSubTree(TimeSeriesDataset trainSet, int minLen, int maxLen, int stepSize) {
 //        System.out.println("Tree Level: " + this.currentTreeDepth + " TrnSet Entropy: " + trainSet.entropy());
-        if (this.currentTreeDepth >= this.maxDepth
+        if (this.currentTreeDepth >= this.maxTreeDepth
                 || trainSet.size() <= this.leafSize
                 || trainSet.entropy() <= 0.1) {
             this.nodeLabel = trainSet.getClassHist()
