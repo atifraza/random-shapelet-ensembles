@@ -1,5 +1,6 @@
 package org.kramerlab.shapelets;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.util.ArrayList;
 import java.util.Properties;
@@ -20,11 +21,12 @@ public class LegacyShapelets extends BaseShapelets {
     
     public LegacyShapelets(TimeSeriesDataset trainSet, int minLen, int maxLen, int stepSize) {
         super(trainSet, minLen, maxLen, stepSize);
-        Properties props;
         try {
-            props = new Properties();
-            String propsFileName = System.getProperty("ls-props", "ls.properties");
-            props.load(new FileInputStream(propsFileName));
+            Properties props = new Properties();
+            File propsFile = new File(System.getProperty("ls-props", "ls.properties"));
+            if (propsFile.exists()) {
+                props.load(new FileInputStream(propsFile));
+            }
             this.normalizationEnabled = Boolean.parseBoolean(props.getProperty("normalize", "false"));
             this.entropyPruningEnabled = Boolean.parseBoolean(props.getProperty("entropy_pruning", "true"));
             this.decreasingLengthOrder = Boolean.parseBoolean(props.getProperty("decreasing_candidate_length", "true"));

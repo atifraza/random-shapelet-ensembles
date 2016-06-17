@@ -3,6 +3,7 @@
  */
 package org.kramerlab.shapelets;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.util.Properties;
 import java.util.Random;
@@ -21,11 +22,12 @@ public class RandomizedLegacyShapelets extends LegacyShapelets {
     
     public RandomizedLegacyShapelets(TimeSeriesDataset trainSet, int minLen, int maxLen, int stepSize) {
         super(trainSet, minLen, maxLen, stepSize);
-        Properties props;
         try {
-            props = new Properties();
-            String propsFileName = System.getProperty("rs-props", "rs.properties");
-            props.load(new FileInputStream(propsFileName));
+            Properties props = new Properties();
+            File propsFile = new File(System.getProperty("rs-props", "rs.properties"));
+            if (propsFile.exists()) {
+                props.load(new FileInputStream(propsFile));
+            }
             percentage = Double.parseDouble(props.getProperty("selection_ratio", "10")) / 100;
             if (props.containsKey("rand_seed")) {
                 int seed = Integer.parseInt(props.getProperty("rand_seed", "0"));
