@@ -20,7 +20,6 @@ public class LaunchRSEnsembleWithBoosting2 {
         DecisionTree tree;
 //        long totalCandidates = 0, prunedCandidates = 0;
         ArrayList<DecisionTree> dtList = new ArrayList<>();
-        ArrayList<Integer> correctlyClassified = new ArrayList<>();
         ArrayList<Integer> incorrectlyClassified = new ArrayList<>();
         ArrayList<Double> weights = new ArrayList<>();
         int predClass = Integer.MIN_VALUE;
@@ -43,9 +42,7 @@ public class LaunchRSEnsembleWithBoosting2 {
             error = 0.0;
             for (int j = 0; j < trainSet.size(); j++) {
                 predClass = tree.checkInstance(trainSet.get(j));
-                if (predClass == trainSet.get(j).getLabel()) {
-                    correctlyClassified.add(j);
-                } else {
+                if (predClass != trainSet.get(j).getLabel()) {
                     error += weights.get(j);
                     incorrectlyClassified.add(j);
                 }
@@ -53,19 +50,15 @@ public class LaunchRSEnsembleWithBoosting2 {
             // totalCandidates += tree.getTotalCandidates();
             // prunedCandidates += tree.getPrunedCandidates();
             dtList.add(i, tree);
-            if (error < 1e-3) {
-                break;
-            }
+//            if (error < 1e-3) {
+//                break;
+//            }
             temp = (2 * error);
             for (Integer ind : incorrectlyClassified) {
                 weights.set(ind, weights.get(ind) / temp);
             }
             incorrectlyClassified.clear();
-            temp = (2 * (1 - error));
-            for (Integer ind : correctlyClassified) {
-                weights.set(ind, weights.get(ind) / temp);
-            }
-            correctlyClassified.clear();
+            normalize(weights);
         }
         stop = System.currentTimeMillis();
         trainingAccuracy = getSplitAccuracy(dtList, trainSet);
@@ -96,5 +89,12 @@ public class LaunchRSEnsembleWithBoosting2 {
             }
         }
         return 100.0 * correct / split.size();
+    }
+    
+    protected static void normalize(ArrayList<Double> weights) {
+        double sum = weights.stream().mapToDouble(val -> val).sum();
+        for (int i = 0; i < weights.size(); i++) {
+            weights.set(i, weights.get(i)/sum);
+        }
     }
 }
