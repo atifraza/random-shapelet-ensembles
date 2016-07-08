@@ -7,7 +7,7 @@ import org.atif.CommonConfig;
 import org.kramerlab.btree.DecisionTree;
 import org.kramerlab.timeseries.TimeSeriesDataset;
 
-public class LaunchRSEnsembleWithBoosting2 {
+public class LaunchRSEnsembleWithBoostingByWeighting {
     
     public static void main(String[] args) {
         CommonConfig cc = new CommonConfig(args);
@@ -69,7 +69,7 @@ public class LaunchRSEnsembleWithBoosting2 {
         stop = System.currentTimeMillis();
         testingTime = (stop - start) / 1e3;
         
-        cc.saveResults("RS Ensemble - Boosting2.csv", trainingTime, testingTime, trainingAccuracy, testingAccuracy,
+        cc.saveResults("RS Ensemble - Boosting by Weighting.csv", trainingTime, testingTime, trainingAccuracy, testingAccuracy,
                        dtList.size());
     }
     

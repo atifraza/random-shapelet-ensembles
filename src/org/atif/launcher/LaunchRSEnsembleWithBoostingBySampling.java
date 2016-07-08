@@ -8,7 +8,7 @@ import org.atif.CommonConfig;
 import org.kramerlab.btree.DecisionTree;
 import org.kramerlab.timeseries.TimeSeriesDataset;
 
-public class LaunchRSEnsembleWithBoosting {
+public class LaunchRSEnsembleWithBoostingBySampling {
     
     public static void main(String[] args) {
         CommonConfig cc = new CommonConfig(args);
@@ -24,7 +24,6 @@ public class LaunchRSEnsembleWithBoosting {
         ArrayList<DecisionTree> dtList = new ArrayList<>();
         ArrayList<Integer> incorrectlyClassified = new ArrayList<>();
         ArrayList<Double> weights = new ArrayList<>();
-        ArrayList<Double> alphaList = new ArrayList<>();
         int predClass = Integer.MIN_VALUE;
         Random rng = new Random();
         double error;
@@ -53,13 +52,9 @@ public class LaunchRSEnsembleWithBoosting {
             // totalCandidates += tree.getTotalCandidates();
             // prunedCandidates += tree.getPrunedCandidates();
             dtList.add(i, tree);
-            if (error >= 0.5 || error < 1e-3) {
-                if (i == 0) {
-                    alphaList.add(i, 1.0);
-                }
-                break;
-            }
-            alphaList.add(i, 0.5 * Math.log((1.0 - error) / error));
+//            if (error < 1e-3) {
+//                break;
+//            }
             temp = (2 * error);
             for (Integer ind : incorrectlyClassified) {
                 weights.set(ind, weights.get(ind) / temp);
@@ -69,33 +64,30 @@ public class LaunchRSEnsembleWithBoosting {
             trainSetResampled = resampleWithWeights(rng, trainSetResampled, weights);
         }
         stop = System.currentTimeMillis();
-        trainingAccuracy = getSplitAccuracy(dtList, alphaList, trainSet);
+        trainingAccuracy = getSplitAccuracy(dtList, trainSet);
         trainingTime = (stop - start) / 1e3;
         
         start = System.currentTimeMillis();
-        testingAccuracy = getSplitAccuracy(dtList, alphaList, testSet);
+        testingAccuracy = getSplitAccuracy(dtList, testSet);
         stop = System.currentTimeMillis();
         testingTime = (stop - start) / 1e3;
         
-        cc.saveResults("RS Ensemble - Boosting.csv", trainingTime, testingTime, trainingAccuracy, testingAccuracy,
+        cc.saveResults("RS Ensemble - Boosting by Sampling.csv", trainingTime, testingTime, trainingAccuracy, testingAccuracy,
                        dtList.size());
     }
     
-    public static double getSplitAccuracy(ArrayList<DecisionTree> dtList, ArrayList<Double> alphaList, TimeSeriesDataset split) {
-        int correct = 0, predClass = Integer.MIN_VALUE;
-        HashMap<Integer, Integer> classMap = split.getClassHist();
-        int min = classMap.keySet().stream().min((x, y) -> x.compareTo(y)).get();
-        int max = classMap.keySet().stream().max((x, y) -> x.compareTo(y)).get();
-        double collectiveDecision = 0;
+    public static double getSplitAccuracy(ArrayList<DecisionTree> dtList, TimeSeriesDataset split) {
+        int predClass, correct = 0, majorityVote;
+        HashMap<Integer, Integer> predClassCount = new HashMap<>();
         for (int ind = 0; ind < split.size(); ind++) {
-            collectiveDecision = 0;
-            for (int j = 0; j < alphaList.size(); j++) {
+            predClassCount.clear();
+            for (int j = 0; j < dtList.size(); j++) {
                 predClass = dtList.get(j).checkInstance(split.get(ind));
-                predClass = -1 + 2 * (predClass - min) / (max - min);
-                collectiveDecision += alphaList.get(j) * predClass;
+                predClassCount.put(predClass, predClassCount.getOrDefault(predClass, 0) + 1);
             }
-            predClass = (int) Math.signum(collectiveDecision);
-            if (-1 + 2 * (split.get(ind).getLabel() - min) / (max - min) == predClass) {
+            majorityVote = predClassCount.entrySet().stream()
+                                         .max((e1, e2) -> ((e1.getValue() > e2.getValue()) ? 1 : -1)).get().getKey();
+            if (majorityVote == split.get(ind).getLabel()) {
                 correct++;
             }
         }
