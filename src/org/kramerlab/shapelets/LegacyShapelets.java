@@ -46,6 +46,7 @@ public class LegacyShapelets extends BaseShapelets {
         TimeSeries t;
         double bsfGain = Double.NEGATIVE_INFINITY;
         double bsfSplit = Double.NEGATIVE_INFINITY;
+        double bsfGap = Double.NEGATIVE_INFINITY;
         double currDist;
         TreeMap<Double, ArrayList<Integer>> bsfOrderLine = null;
         TreeMap<Double, ArrayList<Integer>> orderLine = null;
@@ -74,9 +75,17 @@ public class LegacyShapelets extends BaseShapelets {
             }
             if (!pruned) {
                 this.calcInfoGain_SplitDist(orderLine);
+                this.calcSplitGap(orderLine, info.splitDist, currCandidate.size());
                 if (info.gain > bsfGain) {
                     bsfGain = info.gain;
                     bsfSplit = info.splitDist;
+                    bsfGap = info.splitGap;
+                    bsfShapelet = currCandidate;
+                    bsfOrderLine = orderLine;
+                } else if (this.nearlyEqual(info.gain, bsfGain, 1e-6) && info.splitGap > bsfGap) {
+                    bsfGain = info.gain;
+                    bsfSplit = info.splitDist;
+                    bsfGap = info.splitGap;
                     bsfShapelet = currCandidate;
                     bsfOrderLine = orderLine;
                 }
@@ -86,6 +95,22 @@ public class LegacyShapelets extends BaseShapelets {
         return bestFound;
     }
     
+    private void calcSplitGap(TreeMap<Double, ArrayList<Integer>> orderLine, double splitDist, int len) {
+        double meanLeft = 0, meanRight = 0;
+        Double[] distances = orderLine.keySet().toArray(new Double[orderLine.keySet().size()]);
+        int j = 0;
+        for (int i = 0; distances[i] < splitDist; i++) {
+            meanLeft += distances[i];
+            j++;
+        }
+        meanLeft /= j;
+        for (int i = j; i < distances.length; i++) {
+            meanRight += distances[i];
+        }
+        meanRight /= (distances.length - j);
+        info.splitGap = (meanRight - meanLeft) / Math.sqrt(len);
+    }
+
     protected TimeSeries getNextCandidate() {
         TimeSeries candidate = null;
         if (this.hasMoreCandidates) {
