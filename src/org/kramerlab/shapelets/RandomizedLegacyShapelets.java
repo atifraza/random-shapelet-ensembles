@@ -41,10 +41,18 @@ public class RandomizedLegacyShapelets extends LegacyShapelets {
     }
     
     protected TimeSeries getNextCandidate() {
+        // get a first candidate then start skipping randomly
+        // until a random number comes up so that its less than
+        // the set percentage then check if candidates are still
+        // available, if so, create a new candidate at current
+        // position or return the already created one
+        TimeSeries candidate = super.getNextCandidate();
         while ((rand.nextFloat() > percentage) && this.hasMoreCandidates) {
             this.incrementCandidatePosition();
         }
-        TimeSeries candidate = super.getNextCandidate();
+        if (this.hasMoreCandidates) {
+            candidate = super.getNextCandidate();
+        }
         return candidate;
     }
     
