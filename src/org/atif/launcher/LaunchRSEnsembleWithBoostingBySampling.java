@@ -96,7 +96,11 @@ public class LaunchRSEnsembleWithBoostingBySampling {
     protected static TimeSeriesDataset resampleWithWeights(Random rng, TimeSeriesDataset src, ArrayList<Double> weights) {
         TimeSeriesDataset newSet = new TimeSeriesDataset();
         double[] probabilities = new double[src.size()];
-        double sumProbs = 0, sumWeights = weights.stream().mapToDouble(val -> val).sum();
+        double sumProbs = 0, sumWeights = 0;
+        
+        for (Double weight : weights) {
+            sumWeights += weight;
+        }
         
         for (int i = 0; i < src.size(); i++) {
             sumProbs += rng.nextDouble();
