@@ -42,6 +42,8 @@ public class CommonConfig {
     protected static String ensembleSizeSw = "es";
     protected static String ensembleSizeSwL = "ensemble-size";
     
+    protected String resultsFileName;
+    
     protected CommandLine cmdLine;
     protected Options options;
     
@@ -54,15 +56,17 @@ public class CommonConfig {
     protected int leafSize;
     protected int treeDepth;
     
-    public CommonConfig(String[] args) {
+    public CommonConfig(String[] args, String resultsFileName) {
         this.constructCommandLine(args);
         if (this.cmdLine == null) {
             this.printHelp(true);
             System.exit(1);
         } else {
-            System.out.println("Data set: " + this.getDataSetName());
+            System.out.println("Data set: " + this.getDataSetName() + " - " + resultsFileName);
             this.trainSet = this.loadDataset(this.getDataSetName() + "_TRAIN");
             this.testSet  = this.loadDataset(this.getDataSetName() + "_TEST");
+            
+            this.resultsFileName = resultsFileName;
             
             Properties props = new Properties();
             File propsFile;
@@ -242,21 +246,20 @@ public class CommonConfig {
         return this.treeDepth;
     }
     
-    public void saveResults(String fileName, double trainingTime, double testingTime, double trainingAccuracy,
-                            double testingAccuracy) {
-        this.saveResults(fileName, trainingTime, testingTime, trainingAccuracy, testingAccuracy, false, 0);
+    public void saveResults(double trainingTime, double testingTime, double trainingAccuracy, double testingAccuracy) {
+        this.saveResults(trainingTime, testingTime, trainingAccuracy, testingAccuracy, false, 0);
     }
     
-    public void saveResults(String fileName, double trainingTime, double testingTime, double trainingAccuracy,
-                            double testingAccuracy, int enSize) {
-        this.saveResults(fileName, trainingTime, testingTime, trainingAccuracy, testingAccuracy, true, enSize);
+    public void saveResults(double trainingTime, double testingTime, double trainingAccuracy, double testingAccuracy,
+                            int enSize) {
+        this.saveResults(trainingTime, testingTime, trainingAccuracy, testingAccuracy, true, enSize);
     }
     
-    protected void saveResults(String fileName, double trainingTime, double testingTime, double trainingAccuracy,
-                               double testingAccuracy, boolean isEnsemble, int enSize) {
+    protected void saveResults(double trainingTime, double testingTime, double trainingAccuracy, double testingAccuracy,
+                               boolean isEnsemble, int enSize) {
         try {
             Files.createDirectories(Paths.get(this.getResultsPath()));
-            File resultsFile = new File(Paths.get(this.getResultsPath(), fileName).toString());
+            File resultsFile = new File(Paths.get(this.getResultsPath(), this.resultsFileName).toString());
             Formatter formatter = new Formatter();
             if (!resultsFile.exists()) {
                 formatter.format("%s",

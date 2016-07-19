@@ -16,7 +16,7 @@ import org.kramerlab.timeseries.TimeSeriesDataset;
 public class EstimateParams {
     
     public static void main(String[] args) {
-        CommonConfig cc = new CommonConfig(args);
+        CommonConfig cc = new CommonConfig(args, "Estimating Params");
         if (args.length == 0) {
             cc.printHelp(true);
         } else {

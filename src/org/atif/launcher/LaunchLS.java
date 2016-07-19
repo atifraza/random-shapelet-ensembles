@@ -7,7 +7,7 @@ import org.kramerlab.timeseries.TimeSeriesDataset;
 public class LaunchLS {
     
     public static void main(String[] args) {
-        CommonConfig cc = new CommonConfig(args);
+        CommonConfig cc = new CommonConfig(args, "LS.csv");
         int method = 1;
         TimeSeriesDataset trainSet = new TimeSeriesDataset(cc.getTrainSet()),
                           testSet = new TimeSeriesDataset(cc.getTestSet());
@@ -37,7 +37,7 @@ public class LaunchLS {
         stop = System.currentTimeMillis();
         testingTime = (stop - start) / 1e3;
         
-        cc.saveResults("LS.csv", trainingTime, testingTime, trainingAccuracy, testingAccuracy);
+        cc.saveResults(trainingTime, testingTime, trainingAccuracy, testingAccuracy);
     }
     
     public static double getSplitAccuracy(DecisionTree tree, TimeSeriesDataset split) {

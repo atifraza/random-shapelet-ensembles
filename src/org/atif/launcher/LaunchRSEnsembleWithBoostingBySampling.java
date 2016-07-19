@@ -11,7 +11,7 @@ import org.kramerlab.timeseries.TimeSeriesDataset;
 public class LaunchRSEnsembleWithBoostingBySampling {
     
     public static void main(String[] args) {
-        CommonConfig cc = new CommonConfig(args);
+        CommonConfig cc = new CommonConfig(args, "RS Ensemble - Boosting by Sampling.csv");
         int method = 2;
         TimeSeriesDataset trainSet = new TimeSeriesDataset(cc.getTrainSet()),
                           testSet = new TimeSeriesDataset(cc.getTestSet()),
@@ -72,8 +72,7 @@ public class LaunchRSEnsembleWithBoostingBySampling {
         stop = System.currentTimeMillis();
         testingTime = (stop - start) / 1e3;
         
-        cc.saveResults("RS Ensemble - Boosting by Sampling.csv", trainingTime, testingTime, trainingAccuracy, testingAccuracy,
-                       dtList.size());
+        cc.saveResults(trainingTime, testingTime, trainingAccuracy, testingAccuracy, dtList.size());
     }
     
     public static double getSplitAccuracy(ArrayList<DecisionTree> dtList, TimeSeriesDataset split) {
