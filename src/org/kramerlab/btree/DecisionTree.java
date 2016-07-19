@@ -1,5 +1,7 @@
 package org.kramerlab.btree;
 
+import java.util.HashMap;
+
 import org.kramerlab.shapelets.*;
 import org.kramerlab.timeseries.*;
 
@@ -70,6 +72,8 @@ public class DecisionTree {
     protected int maxTreeDepth;
     protected int currentTreeDepth;
     
+    protected HashMap<Integer, Integer> leafClassHistogram;
+    
     protected DecisionTree() {
         this.parent = null;
         this.leftNode = null;
@@ -111,6 +115,7 @@ public class DecisionTree {
                                      .max((x, y) -> x.getValue() > y.getValue() ? 1 : -1)
                                      .get()
                                      .getKey();
+            this.leafClassHistogram = trainSet.getClassHist();
 //            System.out.println("Leaf Node with Class: " + this.nodeLabel);
         } else {
             switch (methodType) {
@@ -161,7 +166,8 @@ public class DecisionTree {
     protected void printTree(String spaces) {
         String s = spaces + this.nodeID;
         if (this.nodeLabel != Integer.MIN_VALUE) {
-            s += " Class Label: " + this.nodeLabel;
+            s += " Classified as: Class " + this.nodeLabel;
+            s += " [" + this.leafClassHistogram + "]";
         }
         System.out.println(s);
         if (this.leftNode != null) {
