@@ -16,7 +16,7 @@ for l in range(min_len, max_len+1, stepSize):
 #    for t in range(0, ds_size):
 #        count += (ts_length-l+1)
 
-print "Number of shapelet candidates = ", count
+print("Number of shapelet candidates = " + str(count))
 
 sampled_count = int(count*0.01)
 
@@ -27,4 +27,4 @@ for stepSize in range(1,100):
     if newcount < sampled_count:
         break
     
-print "Effective step size for 10% sampling: ", stepSize
+print("Effective step size for 10% sampling: " + str(stepSize))
