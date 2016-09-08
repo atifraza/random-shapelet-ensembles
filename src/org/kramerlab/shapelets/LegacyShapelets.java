@@ -13,6 +13,7 @@ public class LegacyShapelets extends BaseShapelets {
     
     protected boolean hasMoreCandidates;
     protected boolean entropyPruningEnabled;
+    protected boolean distancePruningEnabled;
     protected boolean decreasingLengthOrder;
     protected boolean normalizationEnabled;
     protected int currInst;
@@ -27,8 +28,9 @@ public class LegacyShapelets extends BaseShapelets {
             if (propsFile.exists()) {
                 props.load(new FileInputStream(propsFile));
             }
-            this.normalizationEnabled = Boolean.parseBoolean(props.getProperty("normalize", "false"));
+            this.normalizationEnabled = Boolean.parseBoolean(props.getProperty("normalize", "true"));
             this.entropyPruningEnabled = Boolean.parseBoolean(props.getProperty("entropy_pruning", "true"));
+            this.distancePruningEnabled = Boolean.parseBoolean(props.getProperty("distance_pruning", "true"));
             this.decreasingLengthOrder = Boolean.parseBoolean(props.getProperty("decreasing_candidate_length", "true"));
         } catch (Exception e) {
             e.printStackTrace();
@@ -162,12 +164,14 @@ public class LegacyShapelets extends BaseShapelets {
                     si = (si - sMu) / sSigma;
                 }
                 currDist += Math.pow((ti - si), 2);
-                if (currDist >= minDist) {
+                if (this.distancePruningEnabled && currDist >= minDist) {
                     stopped = true;
                     break;
                 }
             }
-            if (!stopped) {
+            if (this.distancePruningEnabled && !stopped) {
+                minDist = currDist;
+            } else if(currDist < minDist) {
                 minDist = currDist;
             }
         }
