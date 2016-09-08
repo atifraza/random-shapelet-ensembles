@@ -1,9 +1,3 @@
-# Candidate maximum length
-#maxLen=20
-
-# Candidate minimum length
-#minLen=5
-
 # Step size for the sliding window used for extracting candidates (Default: 1)
 #stepSize=1
 
