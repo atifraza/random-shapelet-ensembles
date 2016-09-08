@@ -203,7 +203,7 @@ public class CommonConfig {
     }
     
     protected String getDataPath() {
-        return this.cmdLine.getOptionValue(dataPathSw, "../../data/UCR_2015");
+        return this.cmdLine.getOptionValue(dataPathSw, "../data/UCR_2015");
     }
     
     protected String getResultsPath() {
