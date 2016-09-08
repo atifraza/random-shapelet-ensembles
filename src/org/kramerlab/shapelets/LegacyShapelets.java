@@ -16,6 +16,7 @@ public class LegacyShapelets extends BaseShapelets {
     protected boolean distancePruningEnabled;
     protected boolean decreasingLengthOrder;
     protected boolean normalizationEnabled;
+    protected boolean lengthNormalizationEnabled;
     protected int currInst;
     protected int currPosInInst;
     protected int currLen;
@@ -32,6 +33,7 @@ public class LegacyShapelets extends BaseShapelets {
             this.entropyPruningEnabled = Boolean.parseBoolean(props.getProperty("entropy_pruning", "true"));
             this.distancePruningEnabled = Boolean.parseBoolean(props.getProperty("distance_pruning", "true"));
             this.decreasingLengthOrder = Boolean.parseBoolean(props.getProperty("decreasing_candidate_length", "true"));
+            this.lengthNormalizationEnabled = Boolean.parseBoolean(props.getProperty("length_normalization", "false"));
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -150,7 +152,8 @@ public class LegacyShapelets extends BaseShapelets {
                si,
                sMu = s.mean(0, s.size()),
                sSigma = s.stdv(0, s.size());
-        
+        double lengthNormalizer = this.lengthNormalizationEnabled ? 1.0 / s.size()
+                                                                  : 1.0;
         for (int tInd = 0; tInd < t.size() - s.size() + 1; tInd++) {
             stopped = false;
             currDist = 0;
@@ -163,7 +166,7 @@ public class LegacyShapelets extends BaseShapelets {
                     ti = (ti - tMu) / tSigma;
                     si = (si - sMu) / sSigma;
                 }
-                currDist += Math.pow((ti - si), 2);
+                currDist += Math.pow((ti - si), 2) * lengthNormalizer;
                 if (this.distancePruningEnabled && currDist >= minDist) {
                     stopped = true;
                     break;
