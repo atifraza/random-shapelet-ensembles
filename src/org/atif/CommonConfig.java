@@ -42,6 +42,12 @@ public class CommonConfig {
     protected static String ensembleSizeSw = "es";
     protected static String ensembleSizeSwL = "ensemble-size";
     
+    protected static String minLenFracSw = "mn";
+    protected static String minLenFracSwL = "min-len-frac";
+    
+    protected static String maxLenFracSw = "mx";
+    protected static String maxLenFracSwL = "max-len-frac";
+    
     protected String resultsFileName;
     
     protected CommandLine cmdLine;
@@ -67,6 +73,7 @@ public class CommonConfig {
             this.testSet  = this.loadDataset(this.getDataSetName() + "_TEST");
             
             this.resultsFileName = resultsFileName;
+            this.parseCandidateLengthFractions();
             
             Properties props = new Properties();
             File propsFile;
@@ -86,19 +93,10 @@ public class CommonConfig {
                 System.err.println("Error opening properties file: " + e);
             }
             
-            int tsLen = this.trainSet.get(0).size();
-            this.minLen = (int) (tsLen / 4.0);
-            this.maxLen = (int) (tsLen * 2 / 3.0);
             this.stepSize = 1;
             this.leafSize = 1;
             this.treeDepth = Integer.MAX_VALUE;
             
-            if (props.containsKey("minLen")) {
-                this.minLen = Integer.parseInt(props.getProperty("minLen"));
-            }
-            if (props.containsKey("maxLen")) {
-                this.maxLen = Integer.parseInt(props.getProperty("maxLen"));
-            }
             if (props.containsKey("stepSize")) {
                 this.stepSize = Integer.parseInt(props.getProperty("stepSize"));
             }
@@ -155,6 +153,18 @@ public class CommonConfig {
                                      .longOpt(ensembleSizeSwL)
                                      .argName("ENSEMBLE SIZE")
                                      .desc("The ensemble size\nDefault: 10 members")
+                                     .numberOfArgs(1)
+                                     .build())
+                    .addOption(Option.builder(minLenFracSw)
+                                     .longOpt(minLenFracSwL)
+                                     .argName("MIN LEN FRACTION")
+                                     .desc("Fraction of Time Series Length to use as Minimum Shapelet Length")
+                                     .numberOfArgs(1)
+                                     .build())
+                    .addOption(Option.builder(maxLenFracSw)
+                                     .longOpt(maxLenFracSwL)
+                                     .argName("MAX LEN FRACTION")
+                                     .desc("Fraction of Time Series Length to use as Maximum Shapelet Length")
                                      .numberOfArgs(1)
                                      .build());
         
@@ -272,7 +282,7 @@ public class CommonConfig {
             try (BufferedWriter bw = Files.newBufferedWriter(Paths.get(resultsFile.getAbsolutePath()),
                                                              StandardOpenOption.CREATE,
                                                              StandardOpenOption.APPEND)) {
-                formatter.format("%s,%.2f,%.4f,%.4f,%.4f,%d,%d,%d,%d,%d",
+                formatter.format("%s,%.2f,%.4f,%.4f,%.4f,%d,%d,%d,%f,%f",
                                  this.getDataSetName(),
                                  trainingTime,
                                  testingTime,
@@ -281,8 +291,8 @@ public class CommonConfig {
                                  this.trainSet.size(),
                                  this.testSet.size(),
                                  this.trainSet.get(0).size(),
-                                 this.getMinLen(),
-                                 this.getMaxLen());
+                                 this.getMinLenFrac(),
+                                 this.getMaxLenFrac());
                 if (isEnsemble) {
                     formatter.format(",%d", enSize);
                 }
@@ -313,5 +323,49 @@ public class CommonConfig {
             helpFormatter.printUsage(writer, 120, cliSyntax, options);
         }
         writer.flush();
+    }
+    
+    protected void parseCandidateLengthFractions() {
+        double fLow = Double.parseDouble(cmdLine.getOptionValue(minLenFracSw,
+                                                                "0.25"));
+        double fHigh = Double.parseDouble(cmdLine.getOptionValue(maxLenFracSw,
+                                                                 "0.67"));
+        String message;
+        if (fLow > fHigh) {
+            message = "Maximum length can not be less than Minimum length";
+            throw new IllegalArgumentException(message);
+        }
+        if (fLow <= 0 || fLow > 1) {
+            message = "Illegal fraction for 'Minimum candidate length'\n"
+                      + "Valid range is (0,1] and min_length < max_length";
+            throw new IllegalArgumentException(message);
+        }
+        
+        if (fHigh <= 0 || fHigh > 1) {
+            message = "Illegal fraction for 'Maximum candidate length'\n"
+                    + "Valid range is (0,1] and min_length < max_length";
+            throw new IllegalArgumentException(message);
+        }
+        
+        int minLen = Math.max(1, (int) (this.trainSet.get(0).size() * fLow));
+        if (minLen < 2) {
+            System.err.println("!!! Warning !!!\nMinimum candidate length "
+                               + "below 2 units may cause program crashes "
+                               + "when using normalization because of 0 "
+                               + "variance of the subsequence at length 1");
+        }
+        this.minLen = minLen;
+        
+        int maxLen = Math.min(this.trainSet.get(0).size(),
+                              (int) (this.trainSet.get(0).size() * fHigh));
+        this.maxLen = maxLen;
+    }
+    
+    protected double getMinLenFrac() {
+        return Double.parseDouble(cmdLine.getOptionValue(minLenFracSw, "0.25"));
+    }
+    
+    protected double getMaxLenFrac() {
+        return Double.parseDouble(cmdLine.getOptionValue(maxLenFracSw, "0.67"));
     }
 }
