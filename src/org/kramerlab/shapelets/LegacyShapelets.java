@@ -129,13 +129,13 @@ public class LegacyShapelets extends BaseShapelets {
         this.currPosInInst++;
         if (this.currPosInInst + this.currLen > this.trainSet.get(this.currInst).size()) {
             this.currPosInInst = 0;
-            this.currInst++;
-            if (this.currInst > (this.trainSet.size() - 1)) {
-                this.currInst = 0;
-                int changeFactor = this.stepSize * (this.decreasingLengthOrder ? -1 : 1);
-                this.currLen += changeFactor;
-                if ((this.decreasingLengthOrder && (this.currLen < this.minLen))
+            int changeFactor = this.stepSize * (this.decreasingLengthOrder ? -1 : 1);
+            this.currLen += changeFactor;
+            if ((this.decreasingLengthOrder && (this.currLen < this.minLen))
                     || (!this.decreasingLengthOrder && (this.currLen > this.maxLen))) {
+                this.currLen = this.decreasingLengthOrder ? this.maxLen : this.minLen;
+                this.currInst++;
+                if (this.currInst > (this.trainSet.size() - 1)) {
                     this.hasMoreCandidates = false;
                 }
             }
