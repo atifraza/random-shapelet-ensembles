@@ -73,7 +73,6 @@ public class DecisionTree {
     protected int currentTreeDepth;
     
     protected HashMap<Integer, Integer> nodeClassHistogram;
-    protected HashMap<Integer, Double> condProb;
     
     protected DecisionTree() {
         this.parent = null;
@@ -90,7 +89,6 @@ public class DecisionTree {
         this.currentTreeDepth = 0;
         this.maxTreeDepth = bldr.maxTreeDepth;
         this.leafSize = bldr.leafSize;
-        this.condProb = new HashMap<>();
         this.createSubTree(bldr.trainSet, bldr.minLen, bldr.maxLen, bldr.stepSize);
         this.printTree("");
     }
@@ -118,7 +116,6 @@ public class DecisionTree {
                                      .max((x, y) -> x.getValue() > y.getValue() ? 1 : -1)
                                      .get()
                                      .getKey();
-            this.updateCondProbability(this.nodeLabel, null);
 //            System.out.println("Leaf Node with Class: " + this.nodeLabel);
         } else {
             switch (methodType) {
@@ -181,29 +178,14 @@ public class DecisionTree {
         }
     }
     
-    private void updateCondProbability(Integer label, Double prob) {
-        if (this.parent == null) {
-            this.condProb.put(label,
-                              this.condProb.getOrDefault(label, (Double) 0d)
-                                     + prob);
-        } else {
-            int myInstCount = this.nodeClassHistogram.values().stream()
-                                                     .mapToInt(e -> e)
-                                                     .sum();
-            int parentInstCount = this.parent.nodeClassHistogram.values()
-                                                                .stream()
-                                                                .mapToInt(e -> e)
-                                                                .sum();
-            double labelProb = (double) myInstCount / parentInstCount;
-            
-            if (prob != null) {
-                labelProb *= prob;
-            }
-            this.parent.updateCondProbability(label, labelProb);
-        }
-    }
-    
     public HashMap<Integer, Double> getConditionalProbability() {
-        return this.condProb;
+        HashMap<Integer, Double> condProb = new HashMap<>();
+        int totalInsts = this.nodeClassHistogram.values().stream()
+                                                .mapToInt(e -> e).sum();
+        for (Integer key : this.nodeClassHistogram.keySet()) {
+            condProb.put(key, (double) this.nodeClassHistogram.get(key)
+                              / totalInsts);
+        }
+        return condProb;
     }
 }
