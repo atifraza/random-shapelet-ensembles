@@ -72,7 +72,8 @@ public class DecisionTree {
     protected int maxTreeDepth;
     protected int currentTreeDepth;
     
-    protected HashMap<Integer, Integer> leafClassHistogram;
+    protected HashMap<Integer, Integer> nodeClassHistogram;
+    protected HashMap<Integer, Double> condProb;
     
     protected DecisionTree() {
         this.parent = null;
@@ -89,6 +90,7 @@ public class DecisionTree {
         this.currentTreeDepth = 0;
         this.maxTreeDepth = bldr.maxTreeDepth;
         this.leafSize = bldr.leafSize;
+        this.condProb = new HashMap<>();
         this.createSubTree(bldr.trainSet, bldr.minLen, bldr.maxLen, bldr.stepSize);
         this.printTree("");
     }
@@ -106,6 +108,7 @@ public class DecisionTree {
     
     protected void createSubTree(TimeSeriesDataset trainSet, int minLen, int maxLen, int stepSize) {
 //        System.out.println("Tree Level: " + this.currentTreeDepth + " TrnSet Entropy: " + trainSet.entropy());
+        this.nodeClassHistogram = trainSet.getClassHist();
         if (this.currentTreeDepth >= this.maxTreeDepth
                 || trainSet.size() <= this.leafSize
                 || trainSet.entropy() <= 0.1) {
@@ -115,7 +118,7 @@ public class DecisionTree {
                                      .max((x, y) -> x.getValue() > y.getValue() ? 1 : -1)
                                      .get()
                                      .getKey();
-            this.leafClassHistogram = trainSet.getClassHist();
+            this.updateCondProbability(this.nodeLabel, null);
 //            System.out.println("Leaf Node with Class: " + this.nodeLabel);
         } else {
             switch (methodType) {
@@ -141,7 +144,7 @@ public class DecisionTree {
             this.rightNode = new DecisionTree(this, 2 * this.nodeID + 1, splitDataset[1], minLen, maxLen, stepSize);
         }
     }
-    
+
     public int checkInstance(TimeSeries testInst) {
         if (this.nodeLabel != Integer.MIN_VALUE) {
             return this.nodeLabel;
@@ -167,7 +170,7 @@ public class DecisionTree {
         String s = spaces + this.nodeID;
         if (this.nodeLabel != Integer.MIN_VALUE) {
             s += " Classified as: Class " + this.nodeLabel;
-            s += " [" + this.leafClassHistogram + "]";
+            s += " [" + this.nodeClassHistogram + "]";
         }
         System.out.println(s);
         if (this.leftNode != null) {
@@ -176,5 +179,31 @@ public class DecisionTree {
         if (this.rightNode != null) {
             this.rightNode.printTree(spaces + "  ");
         }
+    }
+    
+    private void updateCondProbability(Integer label, Double prob) {
+        if (this.parent == null) {
+            this.condProb.put(label,
+                              this.condProb.getOrDefault(label, (Double) 0d)
+                                     + prob);
+        } else {
+            int myInstCount = this.nodeClassHistogram.values().stream()
+                                                     .mapToInt(e -> e)
+                                                     .sum();
+            int parentInstCount = this.parent.nodeClassHistogram.values()
+                                                                .stream()
+                                                                .mapToInt(e -> e)
+                                                                .sum();
+            double labelProb = (double) myInstCount / parentInstCount;
+            
+            if (prob != null) {
+                labelProb *= prob;
+            }
+            this.parent.updateCondProbability(label, labelProb);
+        }
+    }
+    
+    public HashMap<Integer, Double> getConditionalProbability() {
+        return this.condProb;
     }
 }
