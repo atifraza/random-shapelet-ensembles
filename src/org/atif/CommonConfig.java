@@ -23,7 +23,9 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.kramerlab.btree.DecisionTree;
 import org.kramerlab.timeseries.TimeSeries;
+import org.kramerlab.timeseries.TimeSeriesDataset;
 
 public class CommonConfig {
     // The following static String variables are the CLI switches
@@ -256,56 +258,6 @@ public class CommonConfig {
         return this.treeDepth;
     }
     
-    public void saveResults(double trainingTime, double testingTime, double trainingAccuracy, double testingAccuracy) {
-        this.saveResults(trainingTime, testingTime, trainingAccuracy, testingAccuracy, false, 0);
-    }
-    
-    public void saveResults(double trainingTime, double testingTime, double trainingAccuracy, double testingAccuracy,
-                            int enSize) {
-        this.saveResults(trainingTime, testingTime, trainingAccuracy, testingAccuracy, true, enSize);
-    }
-    
-    protected void saveResults(double trainingTime, double testingTime, double trainingAccuracy, double testingAccuracy,
-                               boolean isEnsemble, int enSize) {
-        try {
-            Files.createDirectories(Paths.get(this.getResultsPath()));
-            File resultsFile = new File(Paths.get(this.getResultsPath(), this.resultsFileName).toString());
-            Formatter formatter = new Formatter();
-            if (!resultsFile.exists()) {
-                formatter.format("%s",
-                                 "Dataset,TrainingTime,TestingTime,TrainingAccuacy,TestingAccuracy,TrainSize,TestSize,TSLen,MinLen,MaxLen");
-                if (isEnsemble) {
-                    formatter.format(",%s", "EnsembleSize");
-                }
-                formatter.format("\n");
-            }
-            try (BufferedWriter bw = Files.newBufferedWriter(Paths.get(resultsFile.getAbsolutePath()),
-                                                             StandardOpenOption.CREATE,
-                                                             StandardOpenOption.APPEND)) {
-                formatter.format("%s,%.2f,%.4f,%.4f,%.4f,%d,%d,%d,%f,%f",
-                                 this.getDataSetName(),
-                                 trainingTime,
-                                 testingTime,
-                                 trainingAccuracy,
-                                 testingAccuracy,
-                                 this.trainSet.size(),
-                                 this.testSet.size(),
-                                 this.trainSet.get(0).size(),
-                                 this.getMinLenFrac(),
-                                 this.getMaxLenFrac());
-                if (isEnsemble) {
-                    formatter.format(",%d", enSize);
-                }
-                formatter.format("\n");
-                bw.write(formatter.toString());
-            }
-            System.out.println(formatter.toString());
-            formatter.close();
-        } catch (IOException e) {
-            System.err.println("Error saving results: " + e);
-        }
-    }
-    
     /**
      * Print help to provided OutputStream.
      * 
@@ -367,5 +319,94 @@ public class CommonConfig {
     
     protected double getMaxLenFrac() {
         return Double.parseDouble(cmdLine.getOptionValue(maxLenFracSw, "0.67"));
+    }
+    
+    public void saveResults(DecisionTree dt, TimeSeriesDataset trainSet,
+                            TimeSeriesDataset testSet, double trainingTime) {
+        ArrayList<DecisionTree> dtList = new ArrayList<>();
+        dtList.add(dt);
+        this.saveResults(dtList, trainSet, testSet, trainingTime, false);
+    }
+    
+    public void saveResults(ArrayList<DecisionTree> dtList,
+                            TimeSeriesDataset trainSet,
+                            TimeSeriesDataset testSet, double trainingTime) {
+        this.saveResults(dtList, trainSet, testSet, trainingTime, true);
+    }
+    
+    protected void saveResults(ArrayList<DecisionTree> dtList,
+                               TimeSeriesDataset trainSet,
+                               TimeSeriesDataset testSet, double trainingTime,
+                               boolean isEnsemble) {
+        long start = System.currentTimeMillis();
+        double testingAccuracy = this.getSplitAccuracy(dtList, testSet);
+        double testingTime = (System.currentTimeMillis() - start) / 1e3;
+        double trainingAccuracy = this.getSplitAccuracy(dtList, trainSet);
+        
+        try {
+            Files.createDirectories(Paths.get(this.getResultsPath()));
+            File resultsFile = new File(Paths.get(this.getResultsPath(),
+                                                  this.resultsFileName)
+                                             .toString());
+            Formatter formatter = new Formatter();
+            if (!resultsFile.exists()) {
+                formatter.format("%s",
+                                 "Dataset,TrainingTime,TestingTime,"
+                                       + "TrainingAccuacy,TestingAccuracy,"
+                                       + "TrainSize,TestSize,TSLen,MinLen,"
+                                       + "MaxLen");
+                if (isEnsemble) {
+                    formatter.format(",%s", "EnsembleSize");
+                }
+                formatter.format("\n");
+            }
+            try (BufferedWriter bw = Files.newBufferedWriter(Paths.get(resultsFile.getAbsolutePath()),
+                                                             StandardOpenOption.CREATE,
+                                                             StandardOpenOption.APPEND)) {
+                formatter.format("%s,%.2f,%.4f,%.4f,%.4f,%d,%d,%d,%f,%f",
+                                 this.getDataSetName(),
+                                 trainingTime,
+                                 testingTime,
+                                 trainingAccuracy,
+                                 testingAccuracy,
+                                 this.trainSet.size(),
+                                 this.testSet.size(),
+                                 this.trainSet.get(0).size(),
+                                 this.getMinLenFrac(),
+                                 this.getMaxLenFrac());
+                if (isEnsemble) {
+                    formatter.format(",%d", dtList.size());
+                }
+                formatter.format("\n");
+                bw.write(formatter.toString());
+            }
+            System.out.println(formatter.toString());
+            formatter.close();
+        } catch (IOException e) {
+            System.err.println("Error saving results: " + e);
+        }
+    }
+    
+    private double getSplitAccuracy(ArrayList<DecisionTree> dtList,
+                                    TimeSeriesDataset split) {
+        int predClass, correct = 0, majorityVote;
+        HashMap<Integer, Integer> predClassCount = new HashMap<>();
+        for (int ind = 0; ind < split.size(); ind++) {
+            predClassCount.clear();
+            for (int j = 0; j < dtList.size(); j++) {
+                predClass = dtList.get(j).checkInstance(split.get(ind));
+                predClassCount.put(predClass,
+                                   1 + predClassCount.getOrDefault(predClass,
+                                                                   0));
+            }
+            majorityVote = predClassCount.entrySet().stream()
+                                         .max((e1, e2) -> ((e1.getValue() > e2.getValue()) ? 1 : -1))
+                                         .get()
+                                         .getKey();
+            if (majorityVote == split.get(ind).getLabel()) {
+                correct++;
+            }
+        }
+        return 100.0 * correct / split.size();
     }
 }

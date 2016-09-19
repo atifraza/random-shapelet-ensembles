@@ -1,7 +1,6 @@
 package org.atif.launcher;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -19,8 +18,7 @@ public class LaunchRSEnsembleWithBagging {
                           testSet = new TimeSeriesDataset(cc.getTestSet()),
                           trainSetBagged;
         long start, stop;
-        double trainingTime, testingTime;
-        double trainingAccuracy, testingAccuracy;
+        double trainingTime;
         DecisionTree tree;
 //        long totalCandidates = 0, prunedCandidates = 0;
         ArrayList<DecisionTree> dtList = new ArrayList<>();
@@ -48,32 +46,8 @@ public class LaunchRSEnsembleWithBagging {
             dtList.add(tree);
         }
         stop = System.currentTimeMillis();
-        trainingAccuracy = getSplitAccuracy(dtList, trainSet);
         trainingTime = (stop - start) / 1e3;
         
-        start = System.currentTimeMillis();
-        testingAccuracy = getSplitAccuracy(dtList, testSet);
-        stop = System.currentTimeMillis();
-        testingTime = (stop - start) / 1e3;
-        
-        cc.saveResults(trainingTime, testingTime, trainingAccuracy, testingAccuracy, dtList.size());
-    }
-    
-    public static double getSplitAccuracy(ArrayList<DecisionTree> dtList, TimeSeriesDataset split) {
-        int predClass, correct = 0, majorityVote;
-        HashMap<Integer, Integer> predClassCount = new HashMap<>();
-        for (int ind = 0; ind < split.size(); ind++) {
-            predClassCount.clear();
-            for (int j = 0; j < dtList.size(); j++) {
-                predClass = dtList.get(j).checkInstance(split.get(ind));
-                predClassCount.put(predClass, predClassCount.getOrDefault(predClass, 0) + 1);
-            }
-            majorityVote = predClassCount.entrySet().stream()
-                                         .max((e1, e2) -> ((e1.getValue() > e2.getValue()) ? 1 : -1)).get().getKey();
-            if (majorityVote == split.get(ind).getLabel()) {
-                correct++;
-            }
-        }
-        return 100.0 * correct / split.size();
+        cc.saveResults(dtList, trainSet, testSet, trainingTime);
     }
 }
