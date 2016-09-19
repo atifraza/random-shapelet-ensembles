@@ -64,6 +64,14 @@ public class CommonConfig {
     protected int leafSize;
     protected int treeDepth;
     
+    protected double meanSquaredError;
+    protected double bias;
+    protected double variance;
+    protected double irreducibleError;
+    protected HashMap<Integer, Double> trueVec;
+    protected HashMap<Integer, Double> predVec;
+    protected HashMap<Integer, Double> meanVec;
+    
     public CommonConfig(String[] args, String resultsFileName) {
         this.constructCommandLine(args);
         if (this.cmdLine == null) {
@@ -119,6 +127,14 @@ public class CommonConfig {
             if (props.containsKey("treeDepth")) {
                 this.treeDepth = Integer.parseInt(props.getProperty("treeDepth"));
             }
+            
+            this.meanSquaredError = 0d;
+            this.bias = 0d;
+            this.variance = 0d;
+            this.irreducibleError = 0d;
+            this.trueVec = new HashMap<>();
+            this.predVec = new HashMap<>();
+            this.meanVec = new HashMap<>();
         }
     }
     
@@ -338,32 +354,78 @@ public class CommonConfig {
                                TimeSeriesDataset trainSet,
                                TimeSeriesDataset testSet, double trainingTime,
                                boolean isEnsemble) {
-        long start = System.currentTimeMillis();
-        double testingAccuracy = this.getSplitAccuracy(dtList, testSet);
-        double testingTime = (System.currentTimeMillis() - start) / 1e3;
-        double trainingAccuracy = this.getSplitAccuracy(dtList, trainSet);
+        long start;
+        double trainingAccuracy, testingAccuracy, testingTime;
         
         try {
             Files.createDirectories(Paths.get(this.getResultsPath()));
             File resultsFile = new File(Paths.get(this.getResultsPath(),
                                                   this.resultsFileName)
                                              .toString());
-            Formatter formatter = new Formatter();
+            Formatter finalResults = new Formatter();
             if (!resultsFile.exists()) {
-                formatter.format("%s",
+                finalResults.format("%s",
                                  "Dataset,TrainingTime,TestingTime,"
                                        + "TrainingAccuacy,TestingAccuracy,"
                                        + "TrainSize,TestSize,TSLen,MinLen,"
                                        + "MaxLen");
                 if (isEnsemble) {
-                    formatter.format(",%s", "EnsembleSize");
+                    finalResults.format(",%s", "EnsembleSize");
                 }
-                formatter.format("\n");
+                finalResults.format("\n");
             }
+            
+            File iterResultsFile = new File(Paths.get(this.getResultsPath(),
+                                                           this.getDataSetName()
+                                                           + " - " + this.resultsFileName)
+                                                      .toString());
+            Formatter iterResults = new Formatter();
+            iterResults.format("%s\n",
+                             "Iteration,TrAccModelI,TsAccModelI,TrAcc,TrMSE,"
+                                     + "TrBias^2,TrVar,TrIrrErr,TsAcc,TsMSE,"
+                                     + "TsBias^2,TsVar,TsIrrErr");
+            try (BufferedWriter bw = Files.newBufferedWriter(Paths.get(iterResultsFile.getAbsolutePath()),
+                                                             StandardOpenOption.CREATE,
+                                                             StandardOpenOption.TRUNCATE_EXISTING)) {
+                ArrayList<DecisionTree> subList;
+                for (int i = 0; i < dtList.size(); i++) {
+                    subList = new ArrayList<DecisionTree>(dtList.subList(i, i+1));
+                    trainingAccuracy = getSplitAccuracy(subList, trainSet);
+                    testingAccuracy = getSplitAccuracy(subList, testSet);
+                    iterResults.format("%d,%.3f,%.3f",
+                                       i + 1,
+                                       trainingAccuracy,
+                                       testingAccuracy);
+                    subList = new ArrayList<DecisionTree>(dtList.subList(0, i+1));
+                    trainingAccuracy = getSplitAccuracy(subList, trainSet);
+                    testingAccuracy = getSplitAccuracy(subList, testSet);
+                    this.calculateBiasVariance(subList, trainSet);
+                    iterResults.format(",%.4f,%.4f,%.4f,%.4f,%.4f",
+                                     trainingAccuracy,
+                                     this.meanSquaredError,
+                                     this.bias,
+                                     this.variance,
+                                     this.irreducibleError);
+                    this.calculateBiasVariance(subList, testSet);
+                    iterResults.format(",%.4f,%.4f,%.4f,%.4f,%.4f\n",
+                                     testingAccuracy,
+                                     this.meanSquaredError,
+                                     this.bias,
+                                     this.variance,
+                                     this.irreducibleError);
+                }
+                bw.write(iterResults.toString());
+            }
+            iterResults.close();
+            start = System.currentTimeMillis();
+            testingAccuracy = this.getSplitAccuracy(dtList, testSet);
+            testingTime = (System.currentTimeMillis() - start) / 1e3;
+            trainingAccuracy = this.getSplitAccuracy(dtList, trainSet);
+            
             try (BufferedWriter bw = Files.newBufferedWriter(Paths.get(resultsFile.getAbsolutePath()),
                                                              StandardOpenOption.CREATE,
                                                              StandardOpenOption.APPEND)) {
-                formatter.format("%s,%.2f,%.4f,%.4f,%.4f,%d,%d,%d,%f,%f",
+                finalResults.format("%s,%.2f,%.4f,%.4f,%.4f,%d,%d,%d,%f,%f",
                                  this.getDataSetName(),
                                  trainingTime,
                                  testingTime,
@@ -375,13 +437,13 @@ public class CommonConfig {
                                  this.getMinLenFrac(),
                                  this.getMaxLenFrac());
                 if (isEnsemble) {
-                    formatter.format(",%d", dtList.size());
+                    finalResults.format(",%d", dtList.size());
                 }
-                formatter.format("\n");
-                bw.write(formatter.toString());
+                finalResults.format("\n");
+                bw.write(finalResults.toString());
             }
-            System.out.println(formatter.toString());
-            formatter.close();
+            System.out.println(finalResults.toString());
+            finalResults.close();
         } catch (IOException e) {
             System.err.println("Error saving results: " + e);
         }
@@ -408,5 +470,65 @@ public class CommonConfig {
             }
         }
         return 100.0 * correct / split.size();
+    }
+    
+    public void calculateBiasVariance(ArrayList<DecisionTree> dtList,
+                                      TimeSeriesDataset ds) {
+        this.meanSquaredError = 0d;
+        this.bias = 0d;
+        this.variance = 0d;
+        double cummErrorForInstI, errorForInstIWithTreeK;
+        int trueLabel, predLabel, bk, ck;
+        for (int i = 0; i < ds.size(); i++) {
+            trueLabel = ds.get(i).getLabel();
+            cummErrorForInstI = 0d;
+            for (int k = 0; k < dtList.size(); k++) {
+                predLabel = dtList.get(k).checkInstance(ds.get(i));
+                errorForInstIWithTreeK = 0d;
+                for (Integer key : ds.getAllClasses()) {
+                    bk = predLabel == key ? 1 : 0;
+                    ck = trueLabel == key ? 1 : 0;
+                    errorForInstIWithTreeK += (bk - ck) * (bk - ck);
+                }
+                cummErrorForInstI += errorForInstIWithTreeK;
+            }
+            cummErrorForInstI /= dtList.size();
+            this.meanSquaredError += cummErrorForInstI;
+        }
+        this.meanSquaredError /= ds.size();
+        
+        for (int i = 0; i < ds.size(); i++) {
+            this.trueVec.clear();
+            this.predVec.clear();
+            this.meanVec.clear();
+            this.trueVec.put(ds.get(i).getLabel(), 1d);
+            for (int k = 0; k < dtList.size(); k++) {
+                predLabel = dtList.get(k).checkInstance(ds.get(i));
+                this.predVec.put(predLabel,
+                                 1 + this.predVec.getOrDefault(predLabel, 0d));
+                this.meanVec.put(predLabel,
+                                 1 + this.meanVec.getOrDefault(predLabel, 0d));
+            }
+            double max = this.predVec.entrySet().stream()
+                                     .max((e1, e2) -> e1.getValue() > e2.getValue() ? 1 : -1)
+                                     .get().getValue();
+            for (Integer key : ds.getAllClasses()) {
+                this.predVec.put(key, 
+                                 Math.floor(predVec.getOrDefault(key, 0d) / max));
+                this.variance += Math.pow(this.predVec.getOrDefault(key, 0d)
+                                          - this.meanVec.getOrDefault(key, 0d)
+                                            / dtList.size(),
+                                          2)
+                                 / dtList.size();
+                this.bias += Math.pow(this.trueVec.getOrDefault(key, 0d)
+                                      - this.meanVec.getOrDefault(key, 0d)
+                                        / dtList.size(),
+                                      2);
+            }
+        }
+        this.variance /= ds.size();
+        this.bias /= ds.size();
+        this.irreducibleError = this.meanSquaredError - this.bias
+                                - this.variance;
     }
 }
