@@ -83,8 +83,8 @@ public class CommonConfig {
             System.exit(1);
         } else {
             System.out.println("Data set: " + this.getDataSetName() + " - " + resultsFileName);
-            this.trainSet = this.loadDataset(this.getDataSetName() + "_TRAIN");
-            this.testSet  = this.loadDataset(this.getDataSetName() + "_TEST");
+            this.trainSet = this.loadDataset(this.getDataSetName(), "_TRAIN");
+            this.testSet  = this.loadDataset(this.getDataSetName(), "_TEST");
             
             this.resultsFileName = resultsFileName;
             this.parseCandidateLengthFractions();
@@ -206,15 +206,17 @@ public class CommonConfig {
         }
     }
     
-    protected ArrayList<TimeSeries> loadDataset(String fileName) {
+    protected ArrayList<TimeSeries> loadDataset(String fileName, String split) {
         ArrayList<TimeSeries> dataset = null;
         TimeSeries currTS;
         ArrayList<Double> ts;
         int tsClass;
         
-        String currLine, delimiter = " ";
+        String currLine, delimiter = ",";
         StringTokenizer st;
-        try (BufferedReader br = Files.newBufferedReader(Paths.get(this.getDataPath(), fileName))) {
+        try (BufferedReader br = Files.newBufferedReader(Paths.get(this.getDataPath(),
+                                                                   fileName,
+                                                                   fileName + split))) {
             dataset = new ArrayList<TimeSeries>();
             while ((currLine = br.readLine()) != null) {
                 if (currLine.matches("\\s*")) {
@@ -242,7 +244,7 @@ public class CommonConfig {
     }
     
     protected String getDataPath() {
-        return this.cmdLine.getOptionValue(dataPathSw, "../data/UCR_2015");
+        return this.cmdLine.getOptionValue(dataPathSw, "../time_series_data/formats/csv_norm");
     }
     
     protected String getResultsPath() {
