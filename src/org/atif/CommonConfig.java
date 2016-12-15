@@ -384,7 +384,7 @@ public class CommonConfig {
             if (!resultsFile.exists()) {
                 finalResults.format("%s",
                                  "Dataset,TrainingTime,TestingTime,"
-                                       + "TrainingAccuacy,TestingAccuracy,"
+                                       + "TrainingAccuracy,TestingAccuracy,"
                                        + "TrainSize,TestSize,TSLen,MinLen,"
                                        + "MaxLen");
                 if (isEnsemble) {
