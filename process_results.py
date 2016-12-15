@@ -4,18 +4,11 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.stats as stats
+import math
 
 plt.rcdefaults()
 plt.rc('font', **{'size': 12})
 plt.style.use('ggplot')
-
-tuned_params = True
-hpc_runs = True
-with_median = True
-# directories with experiment results
-rslt_path = './results/'
-rslt_path += 'hpc_runs/' if hpc_runs else 'local_runs/'
-rslt_path += 'tuned_params/' if tuned_params else 'fixed_params/'
 
 # list of file names, each file has experiment data for multiple datasets
 # and also multiple runs in case of non deterministic experiments
@@ -104,7 +97,11 @@ def plot_dataset_results():
         fig, (ax0, ax1) = plt.subplots(nrows=1, ncols=2, figsize=fig_size,
                                        sharey=True)
         acc_exact = group[group[alg_col] == 'LS'][acc_col].mean()
+        if math.isnan(acc_exact):
+            acc_exact = 0.0
         rt_exact = group[group[alg_col] == 'LS'][rt_col].mean()
+        if math.isnan(rt_exact):
+            rt_exact = 10*24*60*60
         # Set the x axis limits as (min-3, max+3)
         ax0.set_xlim(left=np.min(group[acc_col].values)-3,
                      right=np.max(group[acc_col].values)+3)
@@ -296,10 +293,17 @@ def create_table(df, table_type='accuracy'):
     print("Tables saved.")
 # =============================================================================
 if __name__ == '__main__':
-    # DataFrame for experimental results
-#    data_df = read_csv_data()
-    # create a list of evaluated datasets
-#    ds_list = data_df[ds_col].unique().tolist()
-#    plot_dataset_results()
-    create_table(data_df, table_type='accuracy')
-    create_table(data_df, table_type='time')
+    with_median = False
+    for tuned_params in [True, False]:
+        for hpc_runs in [True, False]:
+            # directories with experiment results
+            rslt_path = './results/'
+            rslt_path += 'hpc_runs/' if hpc_runs else 'local_runs/'
+            rslt_path += 'tuned_params/' if tuned_params else 'fixed_params/'
+            # DataFrame for experimental results
+            data_df = read_csv_data()
+            # create a list of evaluated datasets
+            ds_list = data_df[ds_col].unique().tolist()
+            plot_dataset_results()
+#            create_table(data_df, table_type='accuracy')
+#            create_table(data_df, table_type='time')
