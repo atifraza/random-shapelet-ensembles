@@ -147,11 +147,9 @@ def plot_dataset_results():
         path = rslt_path + 'plots/'
         category_path = path + key + '/'
         # if directories don't exist, create them
-        if not os.path.exists(path) or not os.path.exists(category_path):
-            os.makedirs(path)
-            os.makedirs(category_path)
+        os.makedirs(category_path, exist_ok=True)
         # save the figure
-        plt.savefig(path + d_set + '.png', dpi=150, format='png')
+        plt.savefig(path + d_set + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches = 0)
         plt.savefig(category_path + d_set + '.png', dpi=150, format='png')
         plt.close()
     print("Finished plotting.")
@@ -305,5 +303,5 @@ if __name__ == '__main__':
             # create a list of evaluated datasets
             ds_list = data_df[ds_col].unique().tolist()
             plot_dataset_results()
-#            create_table(data_df, table_type='accuracy')
-#            create_table(data_df, table_type='time')
+            create_table(data_df, table_type='accuracy')
+            create_table(data_df, table_type='time')
